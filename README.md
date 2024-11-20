@@ -20,3 +20,21 @@
   ```bash
   sudo apt-get install nmap
 
+Required Python libraries:
+```shell
+pip install python-nmap requests geoip2 ipwhois
+```
+## Steps to Install
+Clone the repository:
+```shell
+git clone https://github.com/yourusername/WireWolf.git
+```
+Navigate to the directory:
+```shell
+cd WireWolf
+```
+Install WireWolf locally:
+```shell
+pip install .
+```
+Now you can use wirewolf as a terminal command.
