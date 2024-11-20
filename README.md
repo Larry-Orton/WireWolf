@@ -1,6 +1,5 @@
-<div align="center">
-  <img src="https://github.com/Larry-Orton/WireWolf/blob/main/WireWolf%20Logo.webp](https://raw.githubusercontent.com/Larry-Orton/WireWolf/refs/heads/main/WireWolf%20Logo.webp" alt="Your Image Description" width="300">
-</div>
+
+![alt text](https://raw.githubusercontent.com/Larry-Orton/WireWolf/refs/heads/main/WireWolf%20Logo.webp)
 
 # WireWolf
 
