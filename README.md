@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="path-to-your-image.png" alt="Your Image Description" width="300">
+</div>
+
 # WireWolf
 
 **WireWolf** is a sleek, modern network scanning tool for cybersecurity professionals. It provides a comprehensive analysis of target IPs, domains, and networks directly from the terminal. Built in Python, WireWolf integrates powerful features like port scanning, GeoIP lookup, website metadata analysis, and OS detection in a single, easy-to-use tool.
