@@ -1,9 +1,6 @@
-
-<div align="center" style="background-color: white; padding: 20px; border-radius: 10px; width: 100%; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+<div align="center">
   <img src="https://raw.githubusercontent.com/Larry-Orton/WireWolf/refs/heads/main/WireWolf%20Logo.webp" alt="WireWolf Logo" width="300">
 </div>
-
-
 
 # WireWolf
 
