@@ -112,7 +112,7 @@ Scan Date: 2024-11-19
 --------------------------------
 Scan Complete. Total time: 5.23s
 ```
-H## ow It Works
+## How It Works
 WireWolf leverages several Python libraries and tools to deliver comprehensive results:
 
 nmap: For open port and service detection.
