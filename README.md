@@ -59,11 +59,14 @@ wirewolf -t example.com -o scan_results.txt
 ```
 ## Command-Line Options
 Option	Description
--t, --target	Target domain or IP to scan.
--o, --output	Save the scan results to a specified file.
--p, --ports	Specify ports to scan (e.g., 80,443,8080) or ranges (e.g., 1-1000).
--v, --verbose	Enable verbose output for detailed scanning progress.
--h, --help	Display help information and usage details.
+| Option           | Description                                                                 |
+|------------------|-----------------------------------------------------------------------------|
+| `-t`, `--target` | Target domain or IP to scan.                                                |
+| `-o`, `--output` | Save the scan results to a specified file.                                  |
+| `-p`, `--ports`  | Specify ports to scan (e.g., `80,443,8080`) or ranges (e.g., `1-1000`).     |
+| `-v`, `--verbose`| Enable verbose output for detailed scanning progress.                       |
+| `-h`, `--help`   | Display help information and usage details.                                 |
+
 
 ## Example Output
 ```shell
