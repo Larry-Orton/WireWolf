@@ -1,6 +1,11 @@
 
 ![alt text](https://raw.githubusercontent.com/Larry-Orton/WireWolf/refs/heads/main/WireWolf%20Logo.webp)
 
+<div align="center">
+  <img src="https://raw.githubusercontent.com/Larry-Orton/WireWolf/refs/heads/main/WireWolf%20Logo.webp" alt="WireWolf Logo" width="300">
+</div>
+
+
 # WireWolf
 
 **WireWolf** is a sleek, modern network scanning tool for cybersecurity professionals. It provides a comprehensive analysis of target IPs, domains, and networks directly from the terminal. Built in Python, WireWolf integrates powerful features like port scanning, GeoIP lookup, website metadata analysis, and OS detection in a single, easy-to-use tool.
