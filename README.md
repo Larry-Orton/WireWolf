@@ -2,82 +2,133 @@
   <img src="https://raw.githubusercontent.com/Larry-Orton/WireWolf/refs/heads/main/WireWolf%20Logo.webp" alt="WireWolf Logo" width="300">
 </div>
 
-# WireWolf
+# WireWolf - Network Scanner Tool 🐺
 
-**WireWolf** is a fast and powerful network scanning tool for cybersecurity professionals. It provides detailed insights about IPs and domains, including open ports, GeoIP location, and more. The tool is optimized for simplicity and efficiency, making it an essential addition to your toolkit.
+## Overview
+
+**WireWolf** is a fast, modern, and feature-rich network scanner designed for cybersecurity professionals. With **WireWolf**, you can perform detailed scans on domains or IPs to gather essential information such as:
+
+- Open ports
+- GeoIP location
+- Operating system
+- Website metadata
+- WHOIS information
+
+WireWolf offers both a **full scan mode** and a **fast mode** for streamlined results.
 
 ---
 
 ## Features
 
-- **Port Scanning**: Quickly identifies open ports on a target.
-- **GeoIP Lookup**: Retrieves geographic details of the target IP.
-- **Fast Mode**: Provides essential results with minimal scan time.
-- **Customizable Scans**: Specify ports to scan for targeted results.
-- **Simple Installation**: Easy to install and update using `pipx`.
+- **Target Scanning**: Perform detailed scans of IPs and domains.
+- **GeoIP Lookup**: Get geographic information (e.g., country, region, city).
+- **Port Scanning**: Detect open ports and their services.
+- **Website Metadata**: Gather HTTP server details and SSL info.
+- **WHOIS Lookup**: Retrieve registration and ownership details.
+- **Fast Mode**: Quickly scan basic details like GeoIP and common ports (80, 443).
+- **Interactive Shell**: Use the intuitive `WireWolf>` shell for seamless scanning.
 
 ---
 
 ## Installation
 
-The easiest way to install and manage **WireWolf** is using `pipx`. This ensures an isolated and conflict-free environment for your tool.
+### **Using pipx**
 
-### 1. Install `pipx`
+The easiest way to install and manage **WireWolf** is via `pipx`:
 
-First, install `pipx` if it's not already available on your system:
-
-#### For Debian-Based Systems (e.g., Kali Linux, Ubuntu):
 ```bash
-sudo apt update
 sudo apt install pipx
 pipx ensurepath
 ```
-## Install WireWolf
-Use pipx to install WireWolf from the GitHub repository:
+## Install WireWolf:
+
 ```bash
 pipx install git+https://github.com/larry-orton/WireWolf.git
 ```
-## Usage
-After installation, you can use the ``` wirewolf``` command directly from your terminal.
+## Run WireWolf:
 
-Basic Syntax:
-wirewolf -t <target>
-<target> can be an IP address or domain.
-## Command-Line Options
-Option	Description
-| Option           | Description                                                                 |
-|------------------|-----------------------------------------------------------------------------|
-| `-t`, `--target` | Target domain or IP to scan.                                                |
-| `-o`, `--output` | Save the scan results to a specified file.                                  |
-| `-p`, `--ports`  | Specify ports to scan (e.g., `80,443,8080`) or ranges (e.g., `1-1000`).     |
-| `-v`, `--verbose`| Enable verbose output for detailed scanning progress.                       |
-| `-h`, `--help`   | Display help information and usage details.                                 |
+```bash
+wirewolf
+```
 
-## Examples:
-Basic Scan:
+# Usage
+Run WireWolf to enter the interactive shell:
+
 ```bash
-wirewolf -t example.com
+wirewolf
 ```
-Fast Mode:
+## You will see the following banner:
+
 ```bash
-wirewolf -t example.com --fast
+=============================================
+ __        __  _                                 
+ \ \      / / | |                            
+  \ \ /\ / /__| | ___ ___  _ __ ___   ___  
+   \ V  V / _ \ |/ __/ _ \| '_ ` _ \ / _ \ 
+    \_/\_/  __/ | (_| (_) | | | | | |  __/ 
+         \___|_|\___\___/|_| |_| |_|\___|  
+                                                   
+        WireWolf - Network Scanner Tool            
+          Version: 1.0.0                           
+          Author: Larry Orton                      
+=============================================
+
+Type `help` for available commands.
+🐺 WireWolf>
 ```
-Scan Specific Ports:
+Command-Line Options
+| Option            | Argument         | Description                                                                |
+|-------------------|------------------|----------------------------------------------------------------------------|
+| `-t`, `--target`  | `<IP/Domain>`    | Specify the target domain or IP to scan. **(Required)**                   |
+| `-o`, `--output`  | `<File>`         | Save the scan results to the specified file.                              |
+| `-p`, `--ports`   | `<Ports>`        | Ports to scan (e.g., "80,443" or "1-1000"). Default: `80,443`.            |
+| `-f`, `--fast`    | None             | Enable fast mode: scan only IP, GeoIP, and two common ports (80, 443).    |
+| `-v`, `--verbose` | None             | Enable detailed output during scanning.                                   |
+| `-h`, `--help`    | None             | Display help information and usage details.                               |
+
+
+## Examples
+1. Basic Scan
+Scan the target example.com with default ports (80,443):
+
 ```bash
-wirewolf -t example.com -p 80,443
+scan -t example.com
 ```
-Scan a Range of Ports:
+
+2. Custom Ports
+Scan the target example.com with custom ports:
+
 ```bash
-wirewolf -t example.com -p 1-1000
+scan -t example.com -p 22,8080
 ```
-## Example Output
-```shell
+
+3. Save Report
+Scan the target and save the report to report.txt:
+
+```bash
+scan -t example.com -o report.txt
+```
+4. Fast Scan
+Perform a quick scan with only basic details (GeoIP and ports 80,443):
+
+```bash
+scan -t example.com -f
+```
+5. Verbose Output
+Enable verbose mode for detailed scanning progress:
+
+```bash
+scan -t example.com -v
+```
+# Report Format
+When the scan completes, WireWolf will generate a detailed report like this:
+```bash
 ==========================
  WireWolf Network Scanner
 ==========================
 
 Target: example.com (93.184.216.34)
-Scan Date: 2024-11-19
+Scan Date: 2024-11-20
 ================================
 
 [+] Resolved IP Address:
@@ -91,43 +142,41 @@ Scan Date: 2024-11-19
     - Longitude: -118.2437
 
 [+] Open Ports:
-    - 80/tcp: HTTP (Apache 2.4.41)
-    - 443/tcp: HTTPS (nginx 1.21.3)
-
-[+] Operating System:
-    - Detected: Linux (Kernel 5.x)
+    - 80/tcp: open (HTTP)
+    - 443/tcp: open (HTTPS)
 
 [+] Website Metadata:
-    - Title: Example Domain
-    - Server: ECS (nyb/1.19.3)
-    - SSL Details:
-        - Issuer: DigiCert Inc
-        - Valid From: 2023-11-01
-        - Expiry: 2025-11-01
+    - Status Code: 200
+    - Server: Apache/2.4.41
+    - Content-Type: text/html; charset=UTF-8
 
 [+] Whois Information:
     - ASN: 15133
     - Network: EDGECAST INC
-    - Registrar: ARIN
     - Org: EdgeCast Networks, Inc.
 
 --------------------------------
-Scan Complete. Total time: 5.23s
+Scan Complete.
 ```
-## How It Works
-WireWolf leverages several Python libraries and tools to deliver comprehensive results:
+For fast mode (--fast), the report will include only:
 
-nmap: For open port and service detection.
-geoip2: To provide geographic details of IP addresses.
-requests: For fetching website metadata.
-ipwhois: To gather organizational and registration data of IPs.
-Contributing
-We welcome contributions! If you find a bug or want to add features:
+Resolved IP
+GeoIP information
+Common ports (80, 443)
 
-Fork this repository.
-Create a new branch (feature-branch).
-Submit a pull request.
-License
-WireWolf is licensed under the MIT License.
+# Updating WireWolf
+If you installed WireWolf using pipx, you can easily update it by running:
+```bash
+pipx reinstall WireWolf
+```
+
+$ License
+This project is licensed under the MIT License.
+
+# Author
+Larry Orton
+
+
+
 
 
