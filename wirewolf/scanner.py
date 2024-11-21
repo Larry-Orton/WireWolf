@@ -18,16 +18,19 @@ def scan_ports(ip, ports):
         print(f"An error occurred during port scanning: {e}")
 
 def get_geoip(ip):
-    """Retrieve geographic information for the given IP."""
+    """Retrieve geographic information for the given IP using ip-api.com."""
     try:
-        reader = Reader('/path/to/GeoLite2-City.mmdb')  # Update with your database path
-        response = reader.city(ip)
-        print(f"\nGeoIP Information for {ip}:")
-        print(f"  Country: {response.country.name}")
-        print(f"  City: {response.city.name}")
-        print(f"  Latitude: {response.location.latitude}")
-        print(f"  Longitude: {response.location.longitude}")
-        reader.close()
+        response = requests.get(f"http://ip-api.com/json/{ip}")
+        data = response.json()
+        if data['status'] == 'success':
+            print(f"\nGeoIP Information for {ip}:")
+            print(f"  Country: {data['country']}")
+            print(f"  Region: {data['regionName']}")
+            print(f"  City: {data['city']}")
+            print(f"  Latitude: {data['lat']}")
+            print(f"  Longitude: {data['lon']}")
+        else:
+            print(f"[!] GeoIP lookup failed: {data['message']}")
     except Exception as e:
         print(f"GeoIP lookup failed: {e}")
 
