@@ -170,7 +170,7 @@ If you installed WireWolf using pipx, you can easily update it by running:
 pipx reinstall WireWolf
 ```
 
-$ License
+# License
 This project is licensed under the MIT License.
 
 # Author
