@@ -38,7 +38,7 @@ Use pipx to install WireWolf from the GitHub repository:
 pipx install git+https://github.com/larry-orton/WireWolf.git
 ```
 ## Usage
-After installation, you can use the ```bash wirewolf``` command directly from your terminal.
+After installation, you can use the ``` wirewolf``` command directly from your terminal.
 
 Basic Syntax:
 wirewolf -t <target>
