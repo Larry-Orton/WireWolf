@@ -7,14 +7,11 @@ from datetime import datetime
 from cmd import Cmd
 
 VERSION = "1.0.0"
-AUTHOR = "Your Name"
+AUTHOR = "Larry Orton"
 
 
 class WireWolfShell(Cmd):
     """Interactive shell for WireWolf."""
-    VERSION = "1.0.0"
-    AUTHOR = "Larry Orton"
-
     prompt = "🐺 WireWolf> "
     intro = (
         "=============================================\n"
@@ -29,7 +26,6 @@ class WireWolfShell(Cmd):
         "=============================================\n\n"
         "Type `help` for available commands."
     ).format(VERSION, AUTHOR)
-
 
     def do_scan(self, args):
         """Scan a target. Usage: scan -t <target> [-p <ports>] [-o <output>]"""
@@ -144,10 +140,15 @@ def website_metadata(target):
 
 def generate_report(target, ip, geo_data, ports, whois_data, website_data, output_file):
     """Generate and print the final scan report."""
-    # (Same implementation as above)
+    # (Same implementation as earlier)
     pass
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for the tool."""
     shell = WireWolfShell()
     shell.cmdloop()
+
+
+if __name__ == "__main__":
+    main()
