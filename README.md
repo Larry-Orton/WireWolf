@@ -4,63 +4,45 @@
 
 # WireWolf
 
-**WireWolf** is a sleek, modern network scanning tool for cybersecurity professionals. It provides a comprehensive analysis of target IPs, domains, and networks directly from the terminal. Built in Python, WireWolf integrates powerful features like port scanning, GeoIP lookup, website metadata analysis, and OS detection in a single, easy-to-use tool.
+**WireWolf** is a fast and powerful network scanning tool for cybersecurity professionals. It provides detailed insights about IPs and domains, including open ports, GeoIP location, and more. The tool is optimized for simplicity and efficiency, making it an essential addition to your toolkit.
+
+---
 
 ## Features
 
-- **Fast Scanning**: Asynchronous port scanning for rapid results.
-- **GeoIP Information**: Identify the location of the target IP.
-- **Open Ports Detection**: Displays all active ports with service information.
-- **OS Detection**: Determines the operating system of the target.
-- **Website Analysis**: Fetches metadata, SSL details, and server information.
-- **Whois Lookup**: Provides organizational details of the target's IP.
-- **Clean Terminal Interface**: Outputs data in a clear, well-organized format.
+- **Port Scanning**: Quickly identifies open ports on a target.
+- **GeoIP Lookup**: Retrieves geographic details of the target IP.
+- **Fast Mode**: Provides essential results with minimal scan time.
+- **Customizable Scans**: Specify ports to scan for targeted results.
+- **Simple Installation**: Easy to install and update using `pipx`.
+
+---
 
 ## Installation
 
-### Prerequisites
-- Python 3.8 or higher
-- `nmap` installed on your system:
-  ```bash
-  sudo apt-get install nmap
+The easiest way to install and manage **WireWolf** is using `pipx`. This ensures an isolated and conflict-free environment for your tool.
 
-Required Python libraries:
-```shell
-pip install python-nmap requests geoip2 ipwhois
-```
-## Steps to Install
-Clone the repository:
-```shell
-git clone https://github.com/yourusername/WireWolf.git
-```
-Navigate to the directory:
-```shell
-cd WireWolf
-```
-Install WireWolf locally:
-```shell
-pip install .
-```
-Now you can use wirewolf as a terminal command.
+### 1. Install `pipx`
 
-Usage
-Basic Command
-```shell
+First, install `pipx` if it's not already available on your system:
+
+#### For Debian-Based Systems (e.g., Kali Linux, Ubuntu):
+```bash
+sudo apt update
+sudo apt install pipx
+pipx ensurepath
+```
+## Install WireWolf
+Use pipx to install WireWolf from the GitHub repository:
+```bash
+pipx install git+https://github.com/larry-orton/WireWolf.git
+```
+## Usage
+After installation, you can use the ```bash wirewolf``` command directly from your terminal.
+
+Basic Syntax:
 wirewolf -t <target>
-```
-## Examples
-Scan a domain:
-```shell
-wirewolf -t example.com
-```
-Scan an IP:
-```shell
-wirewolf -t 93.184.216.34
-```
-Save output to a file:
-```shell
-wirewolf -t example.com -o scan_results.txt
-```
+<target> can be an IP address or domain.
 ## Command-Line Options
 Option	Description
 | Option           | Description                                                                 |
@@ -71,7 +53,23 @@ Option	Description
 | `-v`, `--verbose`| Enable verbose output for detailed scanning progress.                       |
 | `-h`, `--help`   | Display help information and usage details.                                 |
 
-
+## Examples:
+Basic Scan:
+```bash
+wirewolf -t example.com
+```
+Fast Mode:
+```bash
+wirewolf -t example.com --fast
+```
+Scan Specific Ports:
+```bash
+wirewolf -t example.com -p 80,443
+```
+Scan a Range of Ports:
+```bash
+wirewolf -t example.com -p 1-1000
+```
 ## Example Output
 ```shell
 ==========================
