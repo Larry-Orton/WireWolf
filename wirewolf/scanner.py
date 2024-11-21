@@ -34,21 +34,23 @@ class WireWolfShell(Cmd):
         "          Author: Larry Orton                      \n"
         "=============================================\n\n"
         "Type `help` for available commands."
-        "                       "
+        "\n"
     )
 
     def do_scan(self, args):
-        """Scan a target. Usage: scan -t <target> [-p <ports>] [-o <output>]"""
+        """Scan a target. Usage: scan -t <target> [-p <ports>] [-o <output>] [-f] [-v]"""
         parser = argparse.ArgumentParser(prog="scan", add_help=False)
-        parser.add_argument('-t', '--target', required=True, help='Target IP or domain')
+        parser.add_argument('-t', '--target', required=True, help='Target IP or domain to scan')
         parser.add_argument('-p', '--ports', default='80,443', help='Ports to scan (default: 80,443)')
         parser.add_argument('-o', '--output', help='Save the scan results to a specified file')
+        parser.add_argument('-f', '--fast', action='store_true', help='Enable fast mode: scan basic details only')
         parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
         try:
             args = parser.parse_args(args.split())
             target = args.target
             ports = args.ports
             output_file = args.output
+            fast = args.fast
             verbose = args.verbose
 
             # Run the scan with a loading animation
@@ -57,11 +59,12 @@ class WireWolfShell(Cmd):
                 target,
                 ports,
                 output_file,
-                verbose
+                verbose,
+                fast
             )
 
         except SystemExit:
-            print("[!] Invalid usage. Type `help scan` for usage details.")
+            print("[!] Invalid usage. Type `help` for usage details.")
 
     def do_exit(self, args):
         """Exit the WireWolf shell."""
@@ -71,10 +74,35 @@ class WireWolfShell(Cmd):
     def do_help(self, args):
         """Display help information for available commands."""
         print("""
-Available commands:
-  scan   - Run a scan. Usage: scan -t <target> [-p <ports>] [-o <output>] [-v]
-  exit   - Exit the WireWolf shell.
-  help   - Show this help message.
+=============================================
+                  HELP MENU                  
+=============================================
+Usage: scan [OPTIONS]
+
+Options:
+  -t, --target    <IP/Domain>    Specify the target domain or IP to scan (required).
+  -o, --output    <File>         Save the scan results to the specified file.
+  -p, --ports     <Ports>        Ports to scan (e.g., "80,443" or "1-1000"). Default: 80,443.
+  -f, --fast                     Enable fast mode: scan only IP, GeoIP, and two common ports.
+  -v, --verbose                  Enable detailed output during scanning.
+  -h, --help                     Display this help menu.
+
+Examples:
+  1. Basic Scan:
+     scan -t example.com
+     
+  2. Custom Ports:
+     scan -t example.com -p 22,8080
+  
+  3. Save Report:
+     scan -t example.com -o report.txt
+  
+  4. Fast Scan:
+     scan -t example.com -f
+  
+  5. Verbose Scan:
+     scan -t example.com -v
+=============================================
         """)
 
 
@@ -106,14 +134,22 @@ def run_with_spinner(task_function, *args):
         sys.stdout.flush()
 
 
-def perform_scan(target, ports, output_file, verbose):
-    """Perform the full scan."""
+def perform_scan(target, ports, output_file, verbose, fast):
+    """Perform the full or fast scan based on user input."""
     ip = socket.gethostbyname(target)
-    geo_data = get_geoip(ip)
-    port_data = scan_ports(ip, ports, verbose)
-    whois_data = whois_lookup(ip)
-    website_data = website_metadata(target)
-    generate_report(target, ip, geo_data, port_data, whois_data, website_data, output_file)
+
+    if fast:
+        # Fast mode: Only IP resolution, GeoIP, and two common ports
+        geo_data = get_geoip(ip)
+        port_data = scan_ports(ip, '80,443', verbose)
+        generate_fast_report(target, ip, geo_data, port_data, output_file)
+    else:
+        # Full scan
+        geo_data = get_geoip(ip)
+        port_data = scan_ports(ip, ports, verbose)
+        whois_data = whois_lookup(ip)
+        website_data = website_metadata(target)
+        generate_report(target, ip, geo_data, port_data, whois_data, website_data, output_file)
 
 
 def scan_ports(ip, ports, verbose):
@@ -156,39 +192,8 @@ def get_geoip(ip):
     return geo_data
 
 
-def whois_lookup(ip):
-    """Retrieve WHOIS information for the given IP."""
-    whois_data = {}
-    try:
-        obj = IPWhois(ip)
-        results = obj.lookup_rdap()
-        whois_data = {
-            'asn': results.get('asn'),
-            'network': results.get('network', {}).get('name', 'unknown'),
-            'org': results.get('asn_description', 'unknown'),
-        }
-    except Exception as e:
-        print(f"[!] Whois lookup failed: {e}")
-    return whois_data
-
-
-def website_metadata(target):
-    """Retrieve website metadata for the given target."""
-    metadata = {}
-    try:
-        response = requests.get(f"http://{target}", timeout=5)
-        metadata = {
-            'status_code': response.status_code,
-            'server': response.headers.get('Server', 'unknown'),
-            'content_type': response.headers.get('Content-Type', 'unknown')
-        }
-    except Exception as e:
-        print(f"[!] Website metadata lookup failed: {e}")
-    return metadata
-
-
-def generate_report(target, ip, geo_data, ports, whois_data, website_data, output_file):
-    """Generate and print the final scan report."""
+def generate_fast_report(target, ip, geo_data, ports, output_file):
+    """Generate a simplified report for fast mode."""
     report = []
     report.append("==========================")
     report.append(" WireWolf Network Scanner")
@@ -204,27 +209,13 @@ def generate_report(target, ip, geo_data, ports, whois_data, website_data, outpu
         report.append("[+] GeoIP Information:")
         report.append(f"    - Country: {geo_data.get('country', 'unknown')}")
         report.append(f"    - Region: {geo_data.get('region', 'unknown')}")
-        report.append(f"    - City: {geo_data.get('city', 'unknown')}")
-        report.append(f"    - Latitude: {geo_data.get('latitude', 'unknown')}")
-        report.append(f"    - Longitude: {geo_data.get('longitude', 'unknown')}\n")
+        report.append(f"    - City: {geo_data.get('city', 'unknown')}\n")
 
     if ports:
         report.append("[+] Open Ports:")
         for port, state, service in ports:
             report.append(f"    - {port}/tcp: {state} ({service})")
         report.append("")
-
-    if website_data:
-        report.append("[+] Website Metadata:")
-        report.append(f"    - Status Code: {website_data.get('status_code', 'unknown')}")
-        report.append(f"    - Server: {website_data.get('server', 'unknown')}")
-        report.append(f"    - Content-Type: {website_data.get('content_type', 'unknown')}\n")
-
-    if whois_data:
-        report.append("[+] Whois Information:")
-        report.append(f"    - ASN: {whois_data.get('asn', 'unknown')}")
-        report.append(f"    - Network: {whois_data.get('network', 'unknown')}")
-        report.append(f"    - Org: {whois_data.get('org', 'unknown')}\n")
 
     report.append("--------------------------------")
     report.append("Scan Complete.")
