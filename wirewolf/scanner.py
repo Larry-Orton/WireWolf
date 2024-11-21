@@ -195,6 +195,23 @@ def get_geoip(ip):
     except Exception as e:
         print(f"[!] GeoIP lookup failed: {e}")
     return geo_data
+def scan_ports(ip, ports, verbose):
+    """Scan specified ports using Nmap."""
+    results = []
+    try:
+        nm = nmap.PortScanner()
+        if verbose:
+            print(f"[Verbose] Scanning ports: {ports} for {ip}...")
+        nm.scan(ip, ports, '-T4')
+        for port in sorted(map(int, ports.split(','))):
+            state = nm[ip]['tcp'][port]['state'] if port in nm[ip]['tcp'] else "unknown"
+            service = nm[ip]['tcp'][port].get('name', 'unknown') if port in nm[ip]['tcp'] else "unknown"
+            results.append((port, state, service))
+    except KeyError:
+        print(f"[!] Error: Unable to scan ports for {ip}. Ensure the IP is reachable.")
+    except Exception as e:
+        print(f"[!] An error occurred during port scanning: {e}")
+    return results
 
 def enumerate_subdomains(domain):
     """Enumerate subdomains for a given domain."""
