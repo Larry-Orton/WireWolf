@@ -1,62 +1,64 @@
 import argparse
 import nmap
 import socket
-import requests
 from geoip2.database import Reader
-from ipwhois import IPWhois
 
 def scan_ports(ip, ports):
-    print(f"\nScanning ports for {ip}...")
-    nm = nmap.PortScanner()
-    nm.scan(ip, ports, '-T4')
-    for host in nm.all_hosts():
-        print(f"Host: {host} ({nm[host].hostname()})")
-        for proto in nm[host].all_protocols():
-            print(f"Protocol: {proto}")
-            ports = nm[host][proto].keys()
-            for port in sorted(ports):
-                print(f"Port {port}: {nm[host][proto][port]['state']}")
+    """Scan specified ports using Nmap."""
+    try:
+        print(f"\nScanning ports for {ip}...")
+        nm = nmap.PortScanner()
+        nm.scan(ip, ports, '-T4')  # -T4 ensures faster scanning
+        for port in map(int, ports.split(',')):  # Convert ports to integers
+            state = nm[ip]['tcp'][port]['state'] if port in nm[ip]['tcp'] else "unknown"
+            print(f"Port {port}: {state}")
+    except KeyError:
+        print(f"Error: Unable to scan ports for {ip}. Ensure the IP is reachable.")
+    except Exception as e:
+        print(f"An error occurred during port scanning: {e}")
 
 def get_geoip(ip):
+    """Retrieve geographic information for the given IP."""
     try:
         reader = Reader('/path/to/GeoLite2-City.mmdb')  # Update with your database path
         response = reader.city(ip)
         print(f"\nGeoIP Information for {ip}:")
-        print(f"Country: {response.country.name}")
-        print(f"City: {response.city.name}")
-        print(f"Latitude: {response.location.latitude}")
-        print(f"Longitude: {response.location.longitude}")
+        print(f"  Country: {response.country.name}")
+        print(f"  City: {response.city.name}")
+        print(f"  Latitude: {response.location.latitude}")
+        print(f"  Longitude: {response.location.longitude}")
         reader.close()
     except Exception as e:
         print(f"GeoIP lookup failed: {e}")
 
-def fast_scan(ip, ports):
-    print("\n[Fast Mode] Scanning ports only...")
-    scan_ports(ip, ports)
-    print("[Fast Mode] Scan Complete.")
+def fast_mode(ip):
+    """Run a minimal scan in fast mode."""
+    print("\n[Fast Mode] Running minimal scan...")
+    print(f"IP Address: {ip}")
+    get_geoip(ip)
+    scan_ports(ip, "80,443")  # Scan only HTTP and HTTPS ports
 
 def main():
+    """Main function to parse arguments and execute the tool."""
     parser = argparse.ArgumentParser(description="WireWolf Network Scanner")
     parser.add_argument('-t', '--target', required=True, help='Target IP or domain')
-    parser.add_argument('-p', '--ports', default='1-65535', help='Ports to scan (e.g., 80,443 or 1-1000)')
-    parser.add_argument('-f', '--fast', action='store_true', help='Run a faster scan with less detail')
+    parser.add_argument('-f', '--fast', action='store_true', help='Run a faster scan with minimal details')
     args = parser.parse_args()
 
     target = args.target
-    ports = args.ports
-    fast_mode = args.fast
+    fast_mode_enabled = args.fast
 
     try:
         ip = socket.gethostbyname(target)
-        print(f"Resolved IP: {ip}")
+        print(f"\nResolved IP: {ip}")
 
-        if fast_mode:
-            fast_scan(ip, ports)
+        if fast_mode_enabled:
+            fast_mode(ip)
         else:
-            scan_ports(ip, ports)
-            get_geoip(ip)
-            # Add more functions for regular scan here (e.g., whois_lookup, website analysis)
-
+            print("\n[Regular Mode] Not yet implemented in this example.")
+            # Add additional functionality for regular mode if needed
+    except KeyboardInterrupt:
+        print("\n[!] Scan interrupted by user. Exiting gracefully.")
     except Exception as e:
         print(f"An error occurred: {e}")
 
