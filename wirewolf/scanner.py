@@ -176,6 +176,7 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
         dns_data = lookup_dns(target) if dns_lookup else {}
         generate_report(target, ip, geo_data, port_data, whois_data, subdomains_data, traceroute_data, dns_data, output_file)
 
+
 def get_geoip(ip):
     """Retrieve geographic information for the given IP using ip-api.com."""
     geo_data = {}
@@ -195,6 +196,8 @@ def get_geoip(ip):
     except Exception as e:
         print(f"[!] GeoIP lookup failed: {e}")
     return geo_data
+
+
 def scan_ports(ip, ports, verbose):
     """Scan specified ports using Nmap."""
     results = []
@@ -212,6 +215,24 @@ def scan_ports(ip, ports, verbose):
     except Exception as e:
         print(f"[!] An error occurred during port scanning: {e}")
     return results
+
+
+def whois_lookup(ip):
+    """Perform WHOIS lookup for the target IP."""
+    whois_data = {}
+    try:
+        obj = IPWhois(ip)
+        result = obj.lookup_rdap()
+        whois_data = {
+            'asn': result.get('asn', 'Unknown'),
+            'asn_description': result.get('asn_description', 'Unknown'),
+            'asn_cidr': result.get('asn_cidr', 'Unknown'),
+            'asn_country_code': result.get('asn_country_code', 'Unknown')
+        }
+    except Exception as e:
+        print(f"[!] WHOIS lookup failed: {e}")
+    return whois_data
+
 
 def enumerate_subdomains(domain):
     """Enumerate subdomains for a given domain."""
