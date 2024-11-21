@@ -1,6 +1,7 @@
 import argparse
 import nmap
 import socket
+import requests
 from geoip2.database import Reader
 
 def scan_ports(ip, ports):
