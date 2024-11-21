@@ -22,8 +22,8 @@ class WireWolfShell(Cmd):
        ███ ███  ██ ██   ██ ███████ ██   ████ 
 
         WireWolf - Network Scanner Tool
-          Version: {}
-          Author: {}
+          Version: {1.0.0}
+          Author: {Larry Orton}
 =============================================
 
 Type `help` for available commands.
