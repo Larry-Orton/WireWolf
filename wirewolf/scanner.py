@@ -13,24 +13,28 @@ import time
 VERSION = "1.0.0"
 AUTHOR = "Larry Orton"
 
+# Global flag to stop the spinner
+stop_spinner = False
+
 
 class WireWolfShell(Cmd):
     """Interactive shell for WireWolf."""
     prompt = "🐺 WireWolf> "
     intro = (
         "=============================================\n"
-        " __        __  _                            _      \n"
-        " \\ \\      / / | |                          | |     \n"
-        "  \\ \\ /\\ / /__| | ___ ___  _ __ ___   ___  | |_ ___\n"
-        "   \\ V  V / _ \\ |/ __/ _ \\| '_ ` _ \\ / _ \\ | __/ _ \\\n"
-        "    \\_/\\_/  __/ | (_| (_) | | | | | |  __/ | ||  __/\n"
-        "         \\___|_|\\___\\___/|_| |_| |_|\\___|  \\__\\___|\n"
+        " __        __  _                                   \n"
+        " \\ \\      / / | |                                \n"
+        "  \\ \\ /\\ / /__| | ___ ___  _ __ ___   ___       \n"
+        "   \\ V  V / _ \\ |/ __/ _ \\| '_ ` _ \\ / _ \     \n"
+        "    \\_/\\_/  __/ | (_| (_) | | | | | |  __/ |     \n"
+        "         \\___|_|\\___\\___/|_| |_| |_|\\___|      \n"
         "                                                   \n"
         "        WireWolf - Network Scanner Tool            \n"
         "          Version: 1.0.0                           \n"
         "          Author: Larry Orton                      \n"
         "=============================================\n\n"
         "Type `help` for available commands."
+        "                       "
     )
 
     def do_scan(self, args):
@@ -76,9 +80,10 @@ Available commands:
 
 def spinner(message):
     """Display an animated spinner with a message."""
+    global stop_spinner
     spinner_chars = itertools.cycle(["|", "/", "-", "\\"])
     sys.stdout.write(f"\r{message} ")
-    while True:
+    while not stop_spinner:
         sys.stdout.write(next(spinner_chars))
         sys.stdout.flush()
         time.sleep(0.1)
@@ -87,15 +92,18 @@ def spinner(message):
 
 def run_with_spinner(task_function, *args):
     """Run a task with a loading spinner."""
+    global stop_spinner
+    stop_spinner = False
     spinner_thread = threading.Thread(target=spinner, args=("Running scan...",))
     spinner_thread.daemon = True
     spinner_thread.start()
     try:
         task_function(*args)
     finally:
+        stop_spinner = True
+        spinner_thread.join()
         sys.stdout.write("\r" + " " * 30 + "\r")  # Clear the spinner line
         sys.stdout.flush()
-        spinner_thread.join(0)
 
 
 def perform_scan(target, ports, output_file, verbose):
