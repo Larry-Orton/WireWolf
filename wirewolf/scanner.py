@@ -176,6 +176,25 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
         dns_data = lookup_dns(target) if dns_lookup else {}
         generate_report(target, ip, geo_data, port_data, whois_data, subdomains_data, traceroute_data, dns_data, output_file)
 
+def get_geoip(ip):
+    """Retrieve geographic information for the given IP using ip-api.com."""
+    geo_data = {}
+    try:
+        response = requests.get(f"http://ip-api.com/json/{ip}")
+        data = response.json()
+        if data['status'] == 'success':
+            geo_data = {
+                'country': data.get('country', 'Unknown'),
+                'region': data.get('regionName', 'Unknown'),
+                'city': data.get('city', 'Unknown'),
+                'latitude': data.get('lat', 'Unknown'),
+                'longitude': data.get('lon', 'Unknown')
+            }
+        else:
+            print(f"[!] GeoIP lookup failed: {data.get('message', 'Unknown error')}")
+    except Exception as e:
+        print(f"[!] GeoIP lookup failed: {e}")
+    return geo_data
 
 def enumerate_subdomains(domain):
     """Enumerate subdomains for a given domain."""
