@@ -80,6 +80,17 @@ class WireWolfShell(Cmd):
         except SystemExit:
             print("[!] Invalid usage. Type `help` for usage details.")
 
+    def do_update(self, args):
+        """Update WireWolf to the latest version."""
+        print("[+] Checking for updates...")
+        try:
+            # Use pipx to reinstall the tool from GitHub
+            subprocess.run(["pipx", "reinstall", "git+https://github.com/larry-orton/WireWolf.git"], check=True)
+            print("[+] WireWolf updated successfully! 🚀")
+        except subprocess.CalledProcessError as e:
+            print("[!] Update failed. Please ensure pipx is installed and configured correctly.")
+            print(f"[!] Error: {e}")
+
     def do_exit(self, args):
         """Exit the WireWolf shell."""
         print("Goodbye!")
@@ -91,44 +102,17 @@ class WireWolfShell(Cmd):
 =============================================
                   HELP MENU                  
 =============================================
-Usage: scan [OPTIONS]
-
-Options:
-  -t, --target      <IP/Domain>    Specify the target domain or IP to scan (required).
-  -o, --output      <File>         Save the scan results to the specified file.
-  -p, --ports       <Ports>        Ports to scan (e.g., "80,443" or "1-1000"). Default: 80,443.
-  -f, --fast                       Enable fast mode: scan only IP, GeoIP, and two common ports.
-  -v, --verbose                    Enable detailed output during scanning.
-      --subdomains                 Enumerate subdomains for the target domain.
-      --traceroute                 Perform a traceroute to the target IP.
-      --dns                        Retrieve DNS records (A, MX) for the target domain.
-      --vulnerabilities            Scan for vulnerabilities based on detected services.
-  -h, --help                       Display this help menu.
+Commands:
+  scan       Perform a network scan. Use `scan -h` for details.
+  update     Update WireWolf to the latest version.
+  exit       Exit the WireWolf shell.
 
 Examples:
-  1. Basic Scan:
+  1. Perform a scan:
      scan -t example.com
-     
-  2. Custom Ports:
-     scan -t example.com -p 22,8080
-  
-  3. Save Report:
-     scan -t example.com -o report.txt
-  
-  4. Fast Scan:
-     scan -t example.com -f
-  
-  5. Subdomain Enumeration:
-     scan -t example.com --subdomains
 
-  6. Traceroute:
-     scan -t 8.8.8.8 --traceroute
-
-  7. DNS Lookup:
-     scan -t example.com --dns
-
-  8. Vulnerability Scan:
-     scan -t example.com --vulnerabilities
+  2. Update WireWolf:
+     update
 =============================================
         """)
 
@@ -390,7 +374,6 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
             print(f"[+] Report saved to {output_file}")
         except Exception as e:
             print(f"[!] Failed to save report: {e}")
-
 
 
 def main():
