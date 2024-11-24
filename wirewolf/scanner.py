@@ -85,7 +85,7 @@ class WireWolfShell(Cmd):
         print("[+] Checking for updates...")
         try:
             # Use pipx to reinstall the tool from GitHub
-            subprocess.run(["pipx", "reinstall", "WireWolf"], check=True)
+            subprocess.run(["pipx", "reinstall", "git+https://github.com/larry-orton/WireWolf.git"], check=True)
             print("[+] WireWolf updated successfully! 🚀")
         except subprocess.CalledProcessError as e:
             print("[!] Update failed. Please ensure pipx is installed and configured correctly.")
@@ -97,8 +97,8 @@ class WireWolfShell(Cmd):
         return True
 
     def do_help(self, args):
-    """Display help information for available commands."""
-    print("""
+        """Display help information for available commands."""
+        print("""
 =============================================
                   HELP MENU                  
 =============================================
@@ -143,7 +143,6 @@ class WireWolfShell(Cmd):
 
 =============================================
 """)
-
 
 
 def spinner(message):
