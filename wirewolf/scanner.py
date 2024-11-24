@@ -12,7 +12,7 @@ import time
 import dns.resolver
 import subprocess
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
@@ -32,7 +32,7 @@ class WireWolfShell(Cmd):
         "         \\___|_|\\___\\___/|_| |_| |_|\\___|      \n"
         "                                                   \n"
         "        WireWolf - Network Scanner Tool            \n"
-        "          Version: 1.1.0                           \n"
+        "          Version: 1.2.0                           \n"
         "          Author: Larry Orton                      \n"
         "=============================================\n\n"
         "Type `help` for available commands."
@@ -50,6 +50,7 @@ class WireWolfShell(Cmd):
         parser.add_argument('--subdomains', action='store_true', help='Enumerate subdomains for the target domain')
         parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target')
         parser.add_argument('--dns', action='store_true', help='Retrieve DNS records for the target domain')
+        parser.add_argument('--vulnerabilities', action='store_true', help='Scan for vulnerabilities based on detected services')
         try:
             args = parser.parse_args(args.split())
             target = args.target
@@ -60,6 +61,7 @@ class WireWolfShell(Cmd):
             subdomains = args.subdomains
             traceroute = args.traceroute
             dns_lookup = args.dns
+            vulnerabilities = args.vulnerabilities
 
             # Run the scan with a loading animation
             run_with_spinner(
@@ -71,7 +73,8 @@ class WireWolfShell(Cmd):
                 fast,
                 subdomains,
                 traceroute,
-                dns_lookup
+                dns_lookup,
+                vulnerabilities
             )
 
         except SystemExit:
@@ -99,6 +102,7 @@ Options:
       --subdomains                 Enumerate subdomains for the target domain.
       --traceroute                 Perform a traceroute to the target IP.
       --dns                        Retrieve DNS records (A, MX) for the target domain.
+      --vulnerabilities            Scan for vulnerabilities based on detected services.
   -h, --help                       Display this help menu.
 
 Examples:
@@ -123,8 +127,8 @@ Examples:
   7. DNS Lookup:
      scan -t example.com --dns
 
-  8. Combined Features:
-     scan -t example.com --subdomains --dns
+  8. Vulnerability Scan:
+     scan -t example.com --vulnerabilities
 =============================================
         """)
 
@@ -157,7 +161,7 @@ def run_with_spinner(task_function, *args):
         sys.stdout.flush()
 
 
-def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup):
+def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, vulnerabilities):
     """Perform the full or fast scan based on user input."""
     ip = socket.gethostbyname(target)
 
@@ -174,28 +178,13 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
         subdomains_data = enumerate_subdomains(target) if subdomains else []
         traceroute_data = trace_route(ip) if traceroute else []
         dns_data = lookup_dns(target) if dns_lookup else {}
-        generate_report(target, ip, geo_data, port_data, whois_data, subdomains_data, traceroute_data, dns_data, output_file)
+        vulnerabilities_data = scan_vulnerabilities(port_data) if vulnerabilities else []
 
-
-def get_geoip(ip):
-    """Retrieve geographic information for the given IP using ip-api.com."""
-    geo_data = {}
-    try:
-        response = requests.get(f"http://ip-api.com/json/{ip}")
-        data = response.json()
-        if data['status'] == 'success':
-            geo_data = {
-                'country': data.get('country', 'Unknown'),
-                'region': data.get('regionName', 'Unknown'),
-                'city': data.get('city', 'Unknown'),
-                'latitude': data.get('lat', 'Unknown'),
-                'longitude': data.get('lon', 'Unknown')
-            }
-        else:
-            print(f"[!] GeoIP lookup failed: {data.get('message', 'Unknown error')}")
-    except Exception as e:
-        print(f"[!] GeoIP lookup failed: {e}")
-    return geo_data
+        generate_report(
+            target, ip, geo_data, port_data, whois_data,
+            subdomains_data, traceroute_data, dns_data,
+            vulnerabilities_data, output_file
+        )
 
 
 def scan_ports(ip, ports, verbose):
@@ -217,21 +206,51 @@ def scan_ports(ip, ports, verbose):
     return results
 
 
-def whois_lookup(ip):
-    """Perform WHOIS lookup for the target IP."""
-    whois_data = {}
+def scan_vulnerabilities(service_data):
+    """Scan for vulnerabilities based on identified services."""
+    vulnerabilities = []
     try:
-        obj = IPWhois(ip)
-        result = obj.lookup_rdap()
-        whois_data = {
-            'asn': result.get('asn', 'Unknown'),
-            'asn_description': result.get('asn_description', 'Unknown'),
-            'asn_cidr': result.get('asn_cidr', 'Unknown'),
-            'asn_country_code': result.get('asn_country_code', 'Unknown')
-        }
+        for service in service_data:
+            port, state, service_name = service
+            if service_name != 'unknown':
+                print(f"Scanning vulnerabilities for {service_name}...")
+                # Use an online CVE database
+                response = requests.get(f"https://cve.circl.lu/api/search/{service_name}")
+                if response.status_code == 200:
+                    cve_data = response.json()
+                    if 'results' in cve_data:
+                        for item in cve_data['results']:
+                            vulnerabilities.append({
+                                'service': service_name,
+                                'port': port,
+                                'cve': item.get('id', 'Unknown CVE ID'),
+                                'description': item.get('summary', 'No description available'),
+                                'score': item.get('cvss', {}).get('score', 'N/A')
+                            })
     except Exception as e:
-        print(f"[!] WHOIS lookup failed: {e}")
-    return whois_data
+        print(f"[!] Vulnerability scanning failed: {e}")
+    return vulnerabilities
+
+
+def get_geoip(ip):
+    """Retrieve geographic information for the given IP using ip-api.com."""
+    geo_data = {}
+    try:
+        response = requests.get(f"http://ip-api.com/json/{ip}")
+        data = response.json()
+        if data['status'] == 'success':
+            geo_data = {
+                'country': data.get('country', 'Unknown'),
+                'region': data.get('regionName', 'Unknown'),
+                'city': data.get('city', 'Unknown'),
+                'latitude': data.get('lat', 'Unknown'),
+                'longitude': data.get('lon', 'Unknown')
+            }
+        else:
+            print(f"[!] GeoIP lookup failed: {data.get('message', 'Unknown error')}")
+    except Exception as e:
+        print(f"[!] GeoIP lookup failed: {e}")
+    return geo_data
 
 
 def enumerate_subdomains(domain):
@@ -272,7 +291,24 @@ def lookup_dns(domain):
     return dns_data
 
 
-def generate_report(target, ip, geo_data, ports, whois_data, subdomains, traceroute, dns_data, output_file):
+def whois_lookup(ip):
+    """Perform WHOIS lookup for the target IP."""
+    whois_data = {}
+    try:
+        obj = IPWhois(ip)
+        result = obj.lookup_rdap()
+        whois_data = {
+            'asn': result.get('asn', 'Unknown'),
+            'asn_description': result.get('asn_description', 'Unknown'),
+            'asn_cidr': result.get('asn_cidr', 'Unknown'),
+            'asn_country_code': result.get('asn_country_code', 'Unknown')
+        }
+    except Exception as e:
+        print(f"[!] WHOIS lookup failed: {e}")
+    return whois_data
+
+
+def generate_report(target, ip, geo_data, ports, whois_data, subdomains, traceroute, dns_data, vulnerabilities, output_file):
     """Generate a comprehensive report based on the scan results."""
     report = []
     report.append("==========================")
@@ -326,6 +362,13 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
         report.append(f"    - CIDR: {whois_data.get('asn_cidr', 'unknown')}")
         report.append(f"    - Country: {whois_data.get('asn_country_code', 'unknown')}")
         report.append("")
+
+    if vulnerabilities:
+        report.append("[+] Identified Vulnerabilities:")
+        for vuln in vulnerabilities:
+            report.append(f"    - Service: {vuln['service']} (Port: {vuln['port']})")
+            report.append(f"      CVE: {vuln['cve']} | Score: {vuln['score']}")
+            report.append(f"      Description: {vuln['description']}\n")
 
     report.append("--------------------------------")
     report.append("Scan Complete.")
