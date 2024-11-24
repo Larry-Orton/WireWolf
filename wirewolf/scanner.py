@@ -97,24 +97,53 @@ class WireWolfShell(Cmd):
         return True
 
     def do_help(self, args):
-        """Display help information for available commands."""
-        print("""
+    """Display help information for available commands."""
+    print("""
 =============================================
                   HELP MENU                  
 =============================================
-Commands:
-  scan       Perform a network scan. Use `scan -h` for details.
-  update     Update WireWolf to the latest version.
-  exit       Exit the WireWolf shell.
 
-Examples:
-  1. Perform a scan:
-     scan -t example.com
+🎯 **COMMANDS**
+---------------------------------------------
+📌 `scan`       Perform a network scan. Type `scan -h` for detailed options.
+📌 `update`     Update WireWolf to the latest version.
+📌 `exit`       Exit the WireWolf shell.
 
-  2. Update WireWolf:
-     update
+---------------------------------------------
+
+🚀 **USAGE EXAMPLES**
+---------------------------------------------
+1️⃣ Perform a Basic Scan:
+   🐺 `scan -t example.com`
+
+2️⃣ Scan with Custom Ports:
+   🐺 `scan -t example.com -p 22,8080`
+
+3️⃣ Save Scan Report:
+   🐺 `scan -t example.com -o report.txt`
+
+4️⃣ Enable Fast Mode (Quick Scan):
+   🐺 `scan -t example.com -f`
+
+5️⃣ Subdomain Enumeration:
+   🐺 `scan -t example.com --subdomains`
+
+6️⃣ DNS Lookup:
+   🐺 `scan -t example.com --dns`
+
+7️⃣ Scan for Vulnerabilities:
+   🐺 `scan -t example.com --vulnerabilities`
+
+8️⃣ Update WireWolf:
+   🐺 `update`
+
+---------------------------------------------
+
+✨ **TIP:** Use `scan -h` to view advanced scan options, such as verbose mode, traceroutes, and more!
+
 =============================================
-        """)
+""")
+
 
 
 def spinner(message):
