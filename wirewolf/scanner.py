@@ -369,6 +369,10 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
             report.append(f"    - Service: {vuln['service']} (Port: {vuln['port']})")
             report.append(f"      CVE: {vuln['cve']} | Score: {vuln['score']}")
             report.append(f"      Description: {vuln['description']}\n")
+    else:
+        # Funny message if no vulnerabilities are found
+        report.append("[+] Vulnerability Scan Results:")
+        report.append("    - No Vuln, She's Clean! 🚿✨\n")
 
     report.append("--------------------------------")
     report.append("Scan Complete.")
@@ -386,6 +390,7 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
             print(f"[+] Report saved to {output_file}")
         except Exception as e:
             print(f"[!] Failed to save report: {e}")
+
 
 
 def main():
