@@ -217,9 +217,10 @@ def run_with_spinner(task_function, *args):
         sys.stdout.flush()
 
 
-def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, vulnerabilities, ssl_check, passwords, sensitive_files):
+def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, vulnerabilities, ssl_check):
     """Perform the full or fast scan based on user input."""
     try:
+        # Resolve target to IP address
         ip = socket.gethostbyname(target)
     except socket.gaierror:
         print(f"[!] Error: Unable to resolve target '{target}'. Please check the domain name or IP address.")
@@ -227,27 +228,36 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
 
     print(f"[+] Resolved IP: {ip}")
 
+    # Fast mode
     if fast:
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, '80,443', verbose)
-        generate_report(target, ip, geo_data, port_data, [], [], {}, [], [], [], [], output_file)
-    else:
-        geo_data = get_geoip(ip)
-        port_data = scan_ports(ip, ports, verbose)
-        subdomains_data = enumerate_subdomains(target) if subdomains else []
-        traceroute_data = trace_route(ip) if traceroute else []
-        dns_data = lookup_dns(target) if dns_lookup else {}
-        vulnerabilities_data = scan_vulnerabilities(port_data) if vulnerabilities else []
-        ssl_check_data = check_ssl(ip) if ssl_check else []  # Updated to call the function
-        passwords_data = password_strength_check(target) if passwords else []
-        sensitive_files_data = scan_sensitive_files(target) if sensitive_files else []
+        generate_report(target, ip, geo_data, port_data, [], [], {}, [], output_file)
+        return
 
-        generate_report(
-            target, ip, geo_data, port_data, subdomains_data,
-            traceroute_data, dns_data, vulnerabilities_data, ssl_check_data,
-            passwords_data, sensitive_files_data, output_file
-        )
+    # Full scan logic
+    geo_data = get_geoip(ip)
+    port_data = scan_ports(ip, ports, verbose)
+    subdomains_data = enumerate_subdomains(target) if subdomains else []
+    traceroute_data = trace_route(ip) if traceroute else []
+    dns_data = lookup_dns(target) if dns_lookup else {}
+    vulnerabilities_data = scan_vulnerabilities(port_data) if vulnerabilities else []
 
+    # SSL Check logic
+    ssl_check_data = None
+    if ssl_check:
+        ssl_check_data = check_ssl(ip)
+        if ssl_check_data and ssl_check_data["status"] == "error" and "IP address mismatch" in ssl_check_data["message"]:
+            print("[!] SSL/TLS Error: IP address mismatch. Retrying with domain...")
+            domain_ssl_data = check_ssl(target)  # Retry with the domain name
+            ssl_check_data = domain_ssl_data if domain_ssl_data else ssl_check_data
+
+    # Generate and print report
+    generate_report(
+        target, ip, geo_data, port_data, subdomains_data,
+        traceroute_data, dns_data, vulnerabilities_data,
+        ssl_check_data, output_file
+    )
 
 def get_geoip(ip):
     """Retrieve geographic information for the given IP."""
@@ -320,24 +330,38 @@ def scan_vulnerabilities(ports):
         print(f"[!] Vulnerability scan failed: {e}")
     return vulnerabilities
     
-def check_ssl(ip):
-    """Check SSL/TLS configuration for the target IP."""
-    ssl_results = []
+def check_ssl(target):
+    """Check SSL/TLS configuration for a target."""
     try:
+        # Attempt to resolve the target as an IP
         context = ssl.create_default_context()
-        with socket.create_connection((ip, 443), timeout=5) as sock:
-            with context.wrap_socket(sock, server_hostname=ip) as ssock:
+        with socket.create_connection((target, 443)) as sock:
+            with context.wrap_socket(sock, server_hostname=target) as ssock:
                 cert = ssock.getpeercert()
-                ssl_results.append(f"Issuer: {cert.get('issuer')}")
-                ssl_results.append(f"Subject: {cert.get('subject')}")
-                ssl_results.append(f"Valid From: {cert.get('notBefore')}")
-                ssl_results.append(f"Valid To: {cert.get('notAfter')}")
-                ssl_results.append(f"Version: {ssock.version()}")
-    except ssl.SSLError as e:
-        ssl_results.append(f"SSL/TLS Error: {e}")
+                return {
+                    "status": "success",
+                    "certificate": cert,
+                }
+    except ssl.SSLCertVerificationError as e:
+        # Check if the error is due to an IP address mismatch
+        if "IP address mismatch" in str(e):
+            print(f"[!] SSL/TLS Error for IP: {e}. Trying domain fallback...")
+            domain = resolve_domain_from_ip(target)
+            if domain:
+                return check_ssl(domain)  # Retry with the domain
+            else:
+                return {"status": "error", "message": "Failed to resolve domain from IP."}
+        return {"status": "error", "message": str(e)}
     except Exception as e:
-        ssl_results.append(f"General Error: {e}")
-    return ssl_results
+        return {"status": "error", "message": str(e)}
+
+def resolve_domain_from_ip(ip):
+    """Attempt to resolve a domain name from an IP address."""
+    try:
+        return socket.gethostbyaddr(ip)[0]
+    except socket.herror:
+        print(f"[!] Unable to resolve domain for IP: {ip}")
+        return None
 
 def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_data, vulnerabilities, ssl_check, passwords, sensitive_files, output_file):
     """Generate the scan report."""
