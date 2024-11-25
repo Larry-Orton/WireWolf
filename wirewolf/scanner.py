@@ -230,26 +230,28 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
 
 
 # SSL/TLS Check Function
-def check_ssl(target):
-    """Check SSL/TLS configurations and provide detailed explanations."""
+def check_ssl(ip, target):
+    """Check SSL/TLS configurations for the given IP or domain."""
     import ssl
     import OpenSSL
     from socket import create_connection
 
     report = ["SSL/TLS Configuration:"]
     try:
+        # Attempt to connect using the domain first, fallback to IP if needed
+        hostname = target if target else ip
         context = ssl.create_default_context()
-        with create_connection((target, 443)) as sock:
-            with context.wrap_socket(sock, server_hostname=target) as ssock:
+        with create_connection((ip, 443)) as sock:
+            with context.wrap_socket(sock, server_hostname=hostname) as ssock:
                 cert = ssock.getpeercert(binary_form=True)
                 x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_ASN1, cert)
 
-                # Subject (Who the certificate is issued for)
+                # Subject
                 subject = dict(x509.get_subject().get_components())
                 report.append(f"    Subject: {subject}")
-                report.append("        - Meaning: This specifies the entity (domain or organization) the certificate was issued for.")
+                report.append("        - Meaning: Specifies the entity (domain/organization) the certificate was issued for.")
 
-                # Issuer (Who issued the certificate)
+                # Issuer
                 issuer = dict(x509.get_issuer().get_components())
                 report.append(f"    Issuer: {issuer}")
                 report.append("        - Meaning: The trusted Certificate Authority (CA) that issued the certificate.")
@@ -258,7 +260,7 @@ def check_ssl(target):
                 report.append(f"    Validity Period:")
                 report.append(f"        - Start: {x509.get_notBefore().decode()}")
                 report.append(f"        - Expiration: {x509.get_notAfter().decode()}")
-                report.append("        - Meaning: This specifies when the certificate is valid and its expiration date.")
+                report.append("        - Meaning: Specifies the start and expiration dates of the certificate.")
 
                 # Subject Alternative Names (SAN)
                 ext_count = x509.get_extension_count()
@@ -266,16 +268,12 @@ def check_ssl(target):
                     ext = x509.get_extension(i)
                     if "subjectAltName" in str(ext.get_short_name()):
                         report.append(f"    Subject Alternative Name (SAN): {ext}")
-                        report.append("        - Meaning: This lists the additional domains covered by the certificate.")
+                        report.append("        - Meaning: Lists additional domains covered by the certificate.")
 
-                # Add more details as needed (OCSP, CRL, etc.)
-                # Example explanation for OCSP
-                report.append("    OCSP (Online Certificate Status Protocol): Check the listed URL to verify the certificate's revocation status.")
-                report.append("    CRL (Certificate Revocation List): Use the listed URL to ensure the certificate is not revoked.")
-
+                # Add additional SSL/TLS details as needed (e.g., OCSP, CRL)
     except ssl.SSLError as e:
         report.append(f"    SSL/TLS Error: {e}")
-        report.append("        - Meaning: This indicates a problem with the certificate or its configuration.")
+        report.append("        - Meaning: Problem with the certificate or its configuration.")
 
     return report
 
