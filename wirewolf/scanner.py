@@ -11,8 +11,9 @@ import threading
 import time
 import dns.resolver
 import subprocess
+from bs4 import BeautifulSoup
 
-VERSION = "1.2.1"
+VERSION = "1.3.0"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
@@ -32,7 +33,7 @@ class WireWolfShell(Cmd):
         "         \\___|_|\\___\\___/|_| |_| |_|\\___|      \n"
         "                                                   \n"
         "        WireWolf - Network Scanner Tool            \n"
-        "          Version: 1.2.1                           \n"
+        "          Version: 1.3.0                           \n"
         "          Author: Larry Orton                      \n"
         "=============================================\n\n"
         "Type `help` for available commands."
@@ -45,7 +46,8 @@ class WireWolfShell(Cmd):
             prog="scan",
             description=(
                 "WireWolf Network Scanner - Perform detailed network scans with options for "
-                "GeoIP lookup, subdomains, DNS records, vulnerabilities, and more."
+                "GeoIP lookup, subdomains, DNS records, vulnerabilities, web fingerprinting, "
+                "TLS checks, and more."
             ),
             formatter_class=argparse.RawTextHelpFormatter,
             add_help=False,
@@ -53,18 +55,21 @@ class WireWolfShell(Cmd):
 
         parser.add_argument('-t', '--target', required=True, help='Target IP or domain to scan (required).')
         parser.add_argument('-p', '--ports', default='80,443', help='Specify ports to scan. (Default: 80,443)')
-        parser.add_argument('-o', '--output', help='Save the scan results to a specified file.')
+        parser.add_argument('-o', '--output', help='Save the scan results to a specified file (HTML format supported).')
         parser.add_argument('-f', '--fast', action='store_true', help='Enable fast mode: Scan basic details only.')
         parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output.')
         parser.add_argument('--subdomains', action='store_true', help='Enumerate subdomains for the target domain.')
         parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target IP.')
         parser.add_argument('--dns', action='store_true', help='Retrieve DNS records (A, MX) for the target domain.')
         parser.add_argument('--vulnerabilities', action='store_true', help='Scan for vulnerabilities based on detected services.')
+        parser.add_argument('--fingerprint', action='store_true', help='Perform web application fingerprinting.')
+        parser.add_argument('--ssl-check', action='store_true', help='Check SSL/TLS configurations for vulnerabilities.')
+        parser.add_argument('--passwords', action='store_true', help='Simulate password brute force with a wordlist.')
+        parser.add_argument('--sensitive-files', action='store_true', help='Check for exposed sensitive files on the target.')
         parser.add_argument('-h', '--help', action='help', help='Show this help menu.')
 
         try:
             args = parser.parse_args(args.split())
-            # Call the scanning function with parsed arguments
             run_with_spinner(
                 perform_scan,
                 args.target,
@@ -75,10 +80,13 @@ class WireWolfShell(Cmd):
                 args.subdomains,
                 args.traceroute,
                 args.dns,
-                args.vulnerabilities
+                args.vulnerabilities,
+                args.fingerprint,
+                args.ssl_check,
+                args.passwords,
+                args.sensitive_files
             )
         except SystemExit:
-            # Display help menu if no valid arguments are provided
             print("""
 =============================================
           SCAN COMMAND HELP MENU            
@@ -92,13 +100,17 @@ class WireWolfShell(Cmd):
 ---------------------------------------------
 -t, --target        Target IP or domain to scan (Required).
 -p, --ports         Ports to scan (e.g., "80,443" or "1-1000"). Default: 80,443.
--o, --output        Save the scan results to the specified file.
+-o, --output        Save the scan results to the specified file (supports HTML output).
 -f, --fast          Enable fast mode: Scan basic details only (IP, GeoIP, ports 80,443).
 -v, --verbose       Enable detailed output during the scan.
 --subdomains        Enumerate subdomains for the target domain.
 --traceroute        Perform a traceroute to the target IP.
 --dns               Retrieve DNS records (A, MX) for the target domain.
 --vulnerabilities   Scan for vulnerabilities based on detected services.
+--fingerprint       Perform web application fingerprinting (CMS, technologies).
+--ssl-check         Check SSL/TLS configurations (protocols, ciphers, cert expiry).
+--passwords         Simulate password brute force using a wordlist.
+--sensitive-files   Scan for exposed sensitive files (.env, .git, backups).
 -h, --help          Display this help menu.
 
 🚀 **EXAMPLES**
@@ -109,89 +121,27 @@ class WireWolfShell(Cmd):
 2️⃣ Scan Custom Ports:
    🐺 `scan -t example.com -p 22,8080`
 
-3️⃣ Save Report to File:
-   🐺 `scan -t example.com -o results.txt`
+3️⃣ Save Report to File (HTML):
+   🐺 `scan -t example.com -o report.html`
 
-4️⃣ Enable Fast Mode:
-   🐺 `scan -t example.com -f`
+4️⃣ Check SSL/TLS:
+   🐺 `scan -t example.com --ssl-check`
 
-5️⃣ Find Subdomains:
-   🐺 `scan -t example.com --subdomains`
+5️⃣ Web Fingerprinting:
+   🐺 `scan -t example.com --fingerprint`
 
-6️⃣ Perform Traceroute:
-   🐺 `scan -t 8.8.8.8 --traceroute`
+6️⃣ Find Sensitive Files:
+   🐺 `scan -t example.com --sensitive-files`
 
-7️⃣ Lookup DNS Records:
-   🐺 `scan -t example.com --dns`
-
-8️⃣ Scan for Vulnerabilities:
-   🐺 `scan -t example.com --vulnerabilities`
-
-✨ **TIP**: Combine options for a comprehensive scan:
-   🐺 `scan -t example.com --dns --vulnerabilities --subdomains`
+7️⃣ Simulate Password Attacks:
+   🐺 `scan -t example.com --passwords`
 =============================================
         """)
-
-    def do_update(self, args):
-        """Update WireWolf to the latest version."""
-        print("[+] Checking for updates...")
-        try:
-            subprocess.run(["pipx", "reinstall", "WireWolf"], check=True)
-            print("[+] WireWolf updated successfully! 🚀")
-        except subprocess.CalledProcessError as e:
-            print("[!] Update failed. Please ensure pipx is installed and configured correctly.")
-            print(f"[!] Error: {e}")
 
     def do_exit(self, args):
         """Exit the WireWolf shell."""
         print("Goodbye!")
         return True
-
-    def do_help(self, args):
-        """Display help information for available commands."""
-        print("""
-=============================================
-                  HELP MENU                  
-=============================================
-
-🎯 **COMMANDS**
----------------------------------------------
-📌 `scan`       Perform a network scan. Type `scan -h` for detailed options.
-📌 `update`     Update WireWolf to the latest version.
-📌 `exit`       Exit the WireWolf shell.
-
----------------------------------------------
-
-🚀 **USAGE EXAMPLES**
----------------------------------------------
-1️⃣ Perform a Basic Scan:
-   🐺 `scan -t example.com`
-
-2️⃣ Scan Custom Ports:
-   🐺 `scan -t example.com -p 22,8080`
-
-3️⃣ Save Scan Report:
-   🐺 `scan -t example.com -o results.txt`
-
-4️⃣ Enable Fast Mode:
-   🐺 `scan -t example.com -f`
-
-5️⃣ Find Subdomains:
-   🐺 `scan -t example.com --subdomains`
-
-6️⃣ Perform Traceroute:
-   🐺 `scan -t 8.8.8.8 --traceroute`
-
-7️⃣ Lookup DNS Records:
-   🐺 `scan -t example.com --dns`
-
-8️⃣ Scan for Vulnerabilities:
-   🐺 `scan -t example.com --vulnerabilities`
-
-✨ **TIP**: Use `scan -h` to view advanced scan options, such as verbose mode, traceroutes, and more!
-
-=============================================
-""")
 
 
 def spinner(message):
@@ -222,29 +172,105 @@ def run_with_spinner(task_function, *args):
         sys.stdout.flush()
 
 
-def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, vulnerabilities):
+def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, vulnerabilities, fingerprint, ssl_check, passwords, sensitive_files):
     """Perform the full or fast scan based on user input."""
     ip = socket.gethostbyname(target)
 
     if fast:
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, '80,443', verbose)
-        generate_fast_report(target, ip, geo_data, port_data, output_file)
+        generate_report(target, ip, geo_data, port_data, output_file)
     else:
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, ports, verbose)
-        whois_data = whois_lookup(ip)
-        subdomains_data = enumerate_subdomains(target) if subdomains else []
+        subdomain_data = enumerate_subdomains(target) if subdomains else []
         traceroute_data = trace_route(ip) if traceroute else []
         dns_data = lookup_dns(target) if dns_lookup else {}
         vulnerabilities_data = scan_vulnerabilities(port_data) if vulnerabilities else []
+        fingerprint_data = web_fingerprint(target) if fingerprint else {}
+        ssl_data = check_ssl_config(target) if ssl_check else {}
+        sensitive_files_data = scan_sensitive_files(target) if sensitive_files else []
+        passwords_data = password_strength_check(target) if passwords else []
 
+        # Combine results and generate report
         generate_report(
-            target, ip, geo_data, port_data, whois_data,
-            subdomains_data, traceroute_data, dns_data,
-            vulnerabilities_data, output_file
+            target,
+            ip,
+            geo_data,
+            port_data,
+            subdomain_data,
+            traceroute_data,
+            dns_data,
+            vulnerabilities_data,
+            fingerprint_data,
+            ssl_data,
+            sensitive_files_data,
+            passwords_data,
+            output_file
         )
 
+
+# Implementing the specific feature functions
+def web_fingerprint(target):
+    """Perform web application fingerprinting."""
+    print("[+] Performing web application fingerprinting...")
+    try:
+        response = requests.get(f"http://{target}", timeout=5)
+        headers = response.headers
+        soup = BeautifulSoup(response.text, 'html.parser')
+        return {
+            "Title": soup.title.string if soup.title else "Unknown",
+            "Server": headers.get('Server', 'Unknown'),
+            "Powered-By": headers.get('X-Powered-By', 'Unknown')
+        }
+    except Exception as e:
+        print(f"[!] Web application fingerprinting failed: {e}")
+        return {}
+
+
+def check_ssl_config(target):
+    """Check SSL/TLS configurations."""
+    print("[+] Checking SSL/TLS configurations...")
+    try:
+        result = subprocess.run(
+            ["openssl", "s_client", "-connect", f"{target}:443"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=10
+        )
+        return result.stdout.decode()
+    except Exception as e:
+        print(f"[!] SSL check failed: {e}")
+        return "Error performing SSL check."
+
+
+def scan_sensitive_files(target):
+    """Check for sensitive files."""
+    print("[+] Scanning for sensitive files...")
+    files = [".env", ".git", "backup.zip"]
+    exposed_files = []
+    try:
+        for file in files:
+            response = requests.get(f"http://{target}/{file}", timeout=5)
+            if response.status_code == 200:
+                exposed_files.append(file)
+    except Exception as e:
+        print(f"[!] Sensitive file check failed: {e}")
+    return exposed_files
+
+
+def password_strength_check(target):
+    """Simulate password brute force."""
+    print("[+] Simulating password brute force...")
+    wordlist = ["admin", "password123", "qwerty"]
+    for password in wordlist:
+        try:
+            response = requests.post(f"http://{target}/login", data={"password": password}, timeout=5)
+            if response.status_code == 200:
+                return {"Weak Password": password}
+        except Exception:
+            pass
+    return "No weak passwords detected."
 
 def scan_ports(ip, ports, verbose):
     """Scan specified ports using Nmap."""
