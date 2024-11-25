@@ -32,7 +32,7 @@ from ipwhois import IPWhois
 from bs4 import BeautifulSoup
 import dns.resolver
 
-VERSION = "1.4.1"
+VERSION = "1.5.0"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
@@ -52,7 +52,7 @@ class WireWolfShell(Cmd):
         "         \\___|_|\\___\\___/|_| |_| |_|\\___|      \n"
         "                                                   \n"
         "        WireWolf - Network Scanner Tool            \n"
-        "          Version: 1.4.1                           \n"
+        "          Version: 1.5.0                           \n"
         "          Author: Larry Orton                      \n"
         "=============================================\n\n"
         "Type `help` for available commands."
@@ -137,8 +137,8 @@ def run_with_spinner(task_function, *args):
         sys.stdout.flush()
 
 
+# Scan logic for GeoIP, Ports, Subdomains, etc.
 def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, vulnerabilities, fingerprint, ssl_check, passwords, sensitive_files):
-    """Perform the full or fast scan based on user input."""
     ip = socket.gethostbyname(target)
 
     if fast:
