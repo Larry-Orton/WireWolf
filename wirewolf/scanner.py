@@ -240,6 +240,29 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
     port_data = scan_ports(ip, ports, verbose)
     subdomains_data = enumerate_subdomains(target) if subdomains else []
     traceroute_data = trace_route(ip) if traceroute else []
+    dns_data def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, vulnerabilities, ssl_check):
+    """Perform the full or fast scan based on user input."""
+    try:
+        # Resolve target to IP address
+        ip = socket.gethostbyname(target)
+    except socket.gaierror:
+        print(f"[!] Error: Unable to resolve target '{target}'. Please check the domain name or IP address.")
+        return
+
+    print(f"[+] Resolved IP: {ip}")
+
+    # Fast mode
+    if fast:
+        geo_data = get_geoip(ip)
+        port_data = scan_ports(ip, '80,443', verbose)
+        generate_report(target, ip, geo_data, port_data, [], [], {}, [], None, output_file)
+        return
+
+    # Full scan logic
+    geo_data = get_geoip(ip)
+    port_data = scan_ports(ip, ports, verbose)
+    subdomains_data = enumerate_subdomains(target) if subdomains else []
+    traceroute_data = trace_route(ip) if traceroute else []
     dns_data = lookup_dns(target) if dns_lookup else {}
     vulnerabilities_data = scan_vulnerabilities(port_data) if vulnerabilities else []
 
@@ -247,7 +270,7 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
     ssl_check_data = None
     if ssl_check:
         ssl_check_data = check_ssl(ip)
-        if ssl_check_data and ssl_check_data["status"] == "error" and "IP address mismatch" in ssl_check_data["message"]:
+        if ssl_check_data and ssl_check_data.get("status") == "error" and "IP address mismatch" in ssl_check_data.get("message", ""):
             print("[!] SSL/TLS Error: IP address mismatch. Retrying with domain...")
             domain_ssl_data = check_ssl(target)  # Retry with the domain name
             ssl_check_data = domain_ssl_data if domain_ssl_data else ssl_check_data
@@ -258,6 +281,7 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
         traceroute_data, dns_data, vulnerabilities_data,
         ssl_check_data, output_file
     )
+
 
 def get_geoip(ip):
     """Retrieve geographic information for the given IP."""
