@@ -119,75 +119,91 @@ WireWolf Documentation: https://github.com/your-repo/WireWolf
             print(f"[!] Error: {e}")
 
     def do_scan(self, args):
-        """Scan a target. Usage: scan -t <target> [options]"""
-        parser = argparse.ArgumentParser(
-            prog="scan",
-            description="""
+    """Scan a target. Usage: scan -t <target> [options]"""
+    parser = argparse.ArgumentParser(
+        prog="scan",
+        description="""
 =============================================
-🛠️  WireWolf Scan Command Help 🛠️
+🔍 WireWolf - Scan Command Help
 =============================================
 
-Usage: `scan -t <target> [options]`
+USAGE:
+    scan -t <target> [OPTIONS]
 
-Options:
----------------------------------------------
--t, --target       Target IP or domain (Required).
--p, --ports        Ports to scan (Default: 80,443).
--o, --output       Save the results to a file.
--f, --fast         Fast mode: Scan IP, GeoIP, and common ports.
--v, --verbose      Show detailed progress during scan.
---subdomains       Enumerate subdomains for the domain.
---traceroute       Perform a traceroute to the target.
---dns              Fetch DNS records (A, MX).
---vulnerabilities  Scan for vulnerabilities.
---ssl-check        Check SSL/TLS configuration.
---passwords        Test password strength.
---sensitive-files  Search for sensitive files.
+OPTIONS:
+    -t, --target          Target IP or domain (Required)
+    -p, --ports           Ports to scan (Default: 80,443)
+    -o, --output          Save scan results to a file
+    -f, --fast            Fast mode: Scan IP, GeoIP, and common ports
+    -v, --verbose         Show detailed progress during scan
+    --subdomains          Enumerate subdomains for the target domain
+    --traceroute          Perform a traceroute to the target
+    --dns                 Fetch DNS records (A, MX)
+    --vulnerabilities     Scan for vulnerabilities
+    --ssl-check           Check SSL/TLS configuration
+    --passwords           Test password strength
+    --sensitive-files     Search for sensitive files
+    -h, --help            Show this help menu
 
-Examples:
----------------------------------------------
-1️⃣  Scan example.com for open ports:
-    🐺 `scan -t example.com`
+EXAMPLES:
+    1️⃣  Basic Scan:
+        scan -t example.com
 
-2️⃣  Find subdomains and vulnerabilities:
-    🐺 `scan -t example.com --subdomains --vulnerabilities`
+    2️⃣  Custom Ports:
+        scan -t example.com -p 22,8080
 
-3️⃣  Save results to a file:
-    🐺 `scan -t example.com -o results.txt`
+    3️⃣  Save Results:
+        scan -t example.com -o results.txt
+
+    4️⃣  Advanced Scan (Subdomains, Vulnerabilities):
+        scan -t example.com --subdomains --vulnerabilities
+
+    5️⃣  Fast Mode:
+        scan -t example.com -f
+
+    6️⃣  Traceroute and DNS Records:
+        scan -t example.com --traceroute --dns
+
+TIPS:
+    🔹 Combine multiple options for a comprehensive scan
+    🔹 Use `menu` to explore guided options
 =============================================
-            """,
-            formatter_class=argparse.RawTextHelpFormatter,
-            add_help=False,
+        """,
+        formatter_class=argparse.RawTextHelpFormatter,
+        add_help=False,
+    )
+
+    parser.add_argument('-t', '--target', required=True, help='Target IP or domain to scan (required).')
+    parser.add_argument('-p', '--ports', default='80,443', help='Specify ports to scan. (Default: 80,443)')
+    parser.add_argument('-o', '--output', help='Save the scan results to a specified file.')
+    parser.add_argument('-f', '--fast', action='store_true', help='Enable fast mode: Scan basic details only.')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output.')
+    parser.add_argument('--subdomains', action='store_true', help='Enumerate subdomains for the target domain.')
+    parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target.')
+    parser.add_argument('--dns', action='store_true', help='Retrieve DNS records for the target domain.')
+    parser.add_argument('--vulnerabilities', action='store_true', help='Scan for vulnerabilities.')
+    parser.add_argument('--ssl-check', action='store_true', help='Check SSL/TLS configuration.')
+    parser.add_argument('--passwords', action='store_true', help='Test password strength.')
+    parser.add_argument('--sensitive-files', action='store_true', help='Search for sensitive files.')
+    parser.add_argument('-h', '--help', action='help', help='Show this help menu.')
+
+    try:
+        args = parser.parse_args(args.split())
+        run_with_spinner(
+            perform_scan,
+            args.target,
+            args.ports,
+            args.output,
+            args.verbose,
+            args.fast,
+            args.subdomains,
+            args.traceroute,
+            args.dns,
+            args.vulnerabilities
         )
+    except SystemExit:
+        print("[!] Invalid command. Use `scan -h` for help.")
 
-        parser.add_argument('-t', '--target', required=True, help='Target IP or domain to scan (required).')
-        parser.add_argument('-p', '--ports', default='80,443', help='Specify ports to scan. (Default: 80,443)')
-        parser.add_argument('-o', '--output', help='Save the scan results to a specified file.')
-        parser.add_argument('-f', '--fast', action='store_true', help='Enable fast mode: Scan basic details only.')
-        parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output.')
-        parser.add_argument('--subdomains', action='store_true', help='Enumerate subdomains for the target domain.')
-        parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target.')
-        parser.add_argument('--dns', action='store_true', help='Retrieve DNS records for the target domain.')
-        parser.add_argument('--vulnerabilities', action='store_true', help='Scan for vulnerabilities.')
-        parser.add_argument('-h', '--help', action='help', help='Show this help menu.')
-
-        try:
-            args = parser.parse_args(args.split())
-            # Call the scanning function with parsed arguments
-            run_with_spinner(
-                perform_scan,
-                args.target,
-                args.ports,
-                args.output,
-                args.verbose,
-                args.fast,
-                args.subdomains,
-                args.traceroute,
-                args.dns,
-                args.vulnerabilities
-            )
-        except SystemExit:
-            print("[!] Invalid command. Use `scan -h` for help.")
 
     def do_exit(self, args):
         """Exit the WireWolf shell."""
