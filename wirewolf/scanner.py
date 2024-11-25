@@ -332,12 +332,31 @@ def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_dat
         *subdomains,
         "\n[+] Vulnerabilities:",
         *[f"    {vuln['port']}/tcp: {vuln['cve']} - {vuln['description']}" for vuln in vulnerabilities],
-        "\n[+] SSL/TLS Configuration:",
-        ssl_check_data.get("certificate", "No SSL/TLS data available")
-        if not ssl_check_data.get("error")
-        else f"    SSL/TLS Error: {ssl_check_data.get('error')}"
+        "\n[+] SSL/TLS Configuration:"
     ]
+
+    if ssl_check_data:
+        if "certificate" in ssl_check_data:
+            cert = ssl_check_data["certificate"]
+            for key, value in cert.items():
+                report.append(f"    {key}: {value}")
+        elif "error" in ssl_check_data:
+            report.append(f"    SSL/TLS Error: {ssl_check_data['error']}")
+    else:
+        report.append("    No SSL/TLS data available.")
+
+    # Print the report
     print("\n".join(report))
+
+    # Save to file if specified
+    if output_file:
+        try:
+            with open(output_file, 'w') as f:
+                f.write("\n".join(report))
+            print(f"[+] Report saved to {output_file}")
+        except Exception as e:
+            print(f"[!] Failed to save report: {e}")
+
 
 
 def main():
