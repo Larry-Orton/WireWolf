@@ -12,7 +12,7 @@ import time
 import dns.resolver
 import subprocess
 
-VERSION = "1.2.1"
+VERSION = "1.3.0"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
@@ -32,12 +32,81 @@ class WireWolfShell(Cmd):
         "         \\___|_|\\___\\___/|_| |_| |_|\\___|      \n"
         "                                                   \n"
         "        WireWolf - Network Scanner Tool            \n"
-        "          Version: 1.2.1                           \n"
+        "          Version: 1.3.0                           \n"
         "          Author: Larry Orton                      \n"
         "=============================================\n\n"
-        "Type `help` for available commands."
+        "Type `menu` to see guided options or `help` for detailed command guidance."
         "\n"
     )
+
+    def do_menu(self, args):
+        """Display the guided menu."""
+        while True:
+            print("""
+=============================================
+🐺  Welcome to WireWolf Network Scanner 🐺
+=============================================
+
+Choose an option:
+---------------------------------------------
+1️⃣  Scan a Target:
+    Perform a detailed network scan on an IP or domain.
+
+2️⃣  Update WireWolf:
+    Get the latest version of WireWolf.
+
+3️⃣  Help Menu:
+    Learn more about WireWolf's features and commands.
+
+4️⃣  Exit:
+    Quit WireWolf.
+
+Type the number or name of the command to proceed:
+            """)
+            choice = input("> ").strip().lower()
+
+            if choice in ["1", "scan"]:
+                print("\n🔎 Starting Scan...\n")
+                self.cmdloop()
+            elif choice in ["2", "update"]:
+                self.do_update("")
+            elif choice in ["3", "help"]:
+                self.do_help("")
+            elif choice in ["4", "exit"]:
+                print("\nGoodbye! 🐺")
+                return
+            else:
+                print("[!] Invalid choice. Please try again.")
+
+    def do_help(self, args):
+        """Display the help menu."""
+        print("""
+=============================================
+💡 WireWolf Help Menu 💡
+=============================================
+
+Available Commands:
+---------------------------------------------
+1️⃣  `scan`: Perform a network scan.
+    - Use `scan -t <target>` to scan a target.
+    - Add options like `--dns`, `--subdomains`, `--vulnerabilities`, etc.
+    - Example: `scan -t example.com --dns --vulnerabilities`
+
+2️⃣  `update`: Update WireWolf to the latest version.
+    - Type `update` to check for and install updates.
+
+3️⃣  `menu`: Display a guided menu with all available options.
+
+4️⃣  `exit`: Quit the WireWolf shell.
+    - Simply type `exit` to leave the program.
+
+For Detailed Guidance:
+---------------------------------------------
+- Use `scan -h` to view all scan options.
+- Visit the documentation for examples and more details.
+
+WireWolf Documentation: https://github.com/your-repo/WireWolf
+        """)
 
     def do_update(self, args):
         """Update WireWolf to the latest version."""
@@ -49,15 +118,44 @@ class WireWolfShell(Cmd):
             print("[!] Update failed. Please ensure pipx is installed and configured correctly.")
             print(f"[!] Error: {e}")
 
-
     def do_scan(self, args):
         """Scan a target. Usage: scan -t <target> [options]"""
         parser = argparse.ArgumentParser(
             prog="scan",
-            description=(
-                "WireWolf Network Scanner - Perform detailed network scans with options for "
-                "GeoIP lookup, subdomains, DNS records, vulnerabilities, and more."
-            ),
+            description="""
+=============================================
+🛠️  WireWolf Scan Command Help 🛠️
+=============================================
+
+Usage: `scan -t <target> [options]`
+
+Options:
+---------------------------------------------
+-t, --target       Target IP or domain (Required).
+-p, --ports        Ports to scan (Default: 80,443).
+-o, --output       Save the results to a file.
+-f, --fast         Fast mode: Scan IP, GeoIP, and common ports.
+-v, --verbose      Show detailed progress during scan.
+--subdomains       Enumerate subdomains for the domain.
+--traceroute       Perform a traceroute to the target.
+--dns              Fetch DNS records (A, MX).
+--vulnerabilities  Scan for vulnerabilities.
+--ssl-check        Check SSL/TLS configuration.
+--passwords        Test password strength.
+--sensitive-files  Search for sensitive files.
+
+Examples:
+---------------------------------------------
+1️⃣  Scan example.com for open ports:
+    🐺 `scan -t example.com`
+
+2️⃣  Find subdomains and vulnerabilities:
+    🐺 `scan -t example.com --subdomains --vulnerabilities`
+
+3️⃣  Save results to a file:
+    🐺 `scan -t example.com -o results.txt`
+=============================================
+            """,
             formatter_class=argparse.RawTextHelpFormatter,
             add_help=False,
         )
@@ -68,9 +166,9 @@ class WireWolfShell(Cmd):
         parser.add_argument('-f', '--fast', action='store_true', help='Enable fast mode: Scan basic details only.')
         parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output.')
         parser.add_argument('--subdomains', action='store_true', help='Enumerate subdomains for the target domain.')
-        parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target')
+        parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target.')
         parser.add_argument('--dns', action='store_true', help='Retrieve DNS records for the target domain.')
-        parser.add_argument('--vulnerabilities', action='store_true', help='Scan for vulnerabilities based on detected services.')
+        parser.add_argument('--vulnerabilities', action='store_true', help='Scan for vulnerabilities.')
         parser.add_argument('-h', '--help', action='help', help='Show this help menu.')
 
         try:
@@ -89,58 +187,7 @@ class WireWolfShell(Cmd):
                 args.vulnerabilities
             )
         except SystemExit:
-            print("""
-=============================================
-          SCAN COMMAND HELP MENU            
-=============================================
-
-🔎 **SCAN COMMAND USAGE**
----------------------------------------------
-🐺 `scan -t <target> [options]`
-
-📝 **OPTIONS**
----------------------------------------------
--t, --target        Target IP or domain to scan (Required).
--p, --ports         Ports to scan (e.g., "80,443" or "1-1000"). Default: 80,443.
--o, --output        Save the scan results to the specified file.
--f, --fast          Enable fast mode: Scan basic details only (IP, GeoIP, ports 80,443).
--v, --verbose       Enable detailed output during the scan.
---subdomains        Enumerate subdomains for the target domain.
---traceroute        Perform a traceroute to the target IP.
---dns               Retrieve DNS records (A, MX) for the target domain.
---vulnerabilities   Scan for vulnerabilities based on detected services.
--h, --help          Display this help menu.
-
-🚀 **EXAMPLES**
----------------------------------------------
-1️⃣ Basic Scan:
-   🐺 `scan -t example.com`
-
-2️⃣ Scan Custom Ports:
-   🐺 `scan -t example.com -p 22,8080`
-
-3️⃣ Save Report to File:
-   🐺 `scan -t example.com -o results.txt`
-
-4️⃣ Enable Fast Mode:
-   🐺 `scan -t example.com -f`
-
-5️⃣ Find Subdomains:
-   🐺 `scan -t example.com --subdomains`
-
-6️⃣ Perform Traceroute:
-   🐺 `scan -t 8.8.8.8 --traceroute`
-
-7️⃣ Lookup DNS Records:
-   🐺 `scan -t example.com --dns`
-
-8️⃣ Scan for Vulnerabilities:
-   🐺 `scan -t example.com --vulnerabilities`
-
-✨ **TIP**: Combine options for a comprehensive scan:
-   🐺 `scan -t example.com --dns --vulnerabilities --subdomains`
-=============================================
-        """)
+            print("[!] Invalid command. Use `scan -h` for help.")
 
     def do_exit(self, args):
         """Exit the WireWolf shell."""
@@ -181,26 +228,22 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
     ip = socket.gethostbyname(target)
 
     if fast:
-        # Fast mode: Only IP resolution, GeoIP, and two common ports
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, '80,443', verbose)
         generate_report(target, ip, geo_data, port_data, [], [], {}, [], output_file)
     else:
-        # Full scan
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, ports, verbose)
         subdomains_data = enumerate_subdomains(target) if subdomains else []
         traceroute_data = trace_route(ip) if traceroute else []
         dns_data = lookup_dns(target) if dns_lookup else {}
         vulnerabilities_data = scan_vulnerabilities(port_data) if vulnerabilities else []
-
         generate_report(
             target, ip, geo_data, port_data, subdomains_data,
             traceroute_data, dns_data, vulnerabilities_data, output_file
         )
 
 
-# GeoIP Lookup
 def get_geoip(ip):
     """Retrieve geographic information for the given IP."""
     try:
@@ -211,7 +254,6 @@ def get_geoip(ip):
         return {}
 
 
-# Port Scanning
 def scan_ports(ip, ports, verbose):
     """Scan specified ports using Nmap."""
     results = []
@@ -227,7 +269,6 @@ def scan_ports(ip, ports, verbose):
     return results
 
 
-# DNS Lookup
 def lookup_dns(domain):
     """Retrieve DNS records."""
     records = {}
@@ -239,7 +280,6 @@ def lookup_dns(domain):
     return records
 
 
-# Subdomain Enumeration
 def enumerate_subdomains(domain):
     """Enumerate subdomains."""
     subdomains = []
@@ -256,7 +296,6 @@ def enumerate_subdomains(domain):
     return subdomains
 
 
-# Vulnerability Scanning
 def scan_vulnerabilities(ports):
     """Scan for vulnerabilities."""
     vulnerabilities = []
@@ -277,7 +316,6 @@ def scan_vulnerabilities(ports):
     return vulnerabilities
 
 
-# Generate Scan Report
 def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_data, vulnerabilities, output_file):
     """Generate the scan report."""
     report = [
