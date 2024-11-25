@@ -11,6 +11,7 @@ import threading
 import time
 import dns.resolver
 import subprocess
+import ssl
 
 VERSION = "1.3.0"
 AUTHOR = "Larry Orton"
@@ -237,7 +238,7 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
         traceroute_data = trace_route(ip) if traceroute else []
         dns_data = lookup_dns(target) if dns_lookup else {}
         vulnerabilities_data = scan_vulnerabilities(port_data) if vulnerabilities else []
-        ssl_check_data = check_ssl(ip) if ssl_check else []
+        ssl_check_data = check_ssl(ip) if ssl_check else []  # Updated to call the function
         passwords_data = password_strength_check(target) if passwords else []
         sensitive_files_data = scan_sensitive_files(target) if sensitive_files else []
 
@@ -318,7 +319,25 @@ def scan_vulnerabilities(ports):
     except Exception as e:
         print(f"[!] Vulnerability scan failed: {e}")
     return vulnerabilities
-
+    
+def check_ssl(ip):
+    """Check SSL/TLS configuration for the target IP."""
+    ssl_results = []
+    try:
+        context = ssl.create_default_context()
+        with socket.create_connection((ip, 443), timeout=5) as sock:
+            with context.wrap_socket(sock, server_hostname=ip) as ssock:
+                cert = ssock.getpeercert()
+                ssl_results.append(f"Issuer: {cert.get('issuer')}")
+                ssl_results.append(f"Subject: {cert.get('subject')}")
+                ssl_results.append(f"Valid From: {cert.get('notBefore')}")
+                ssl_results.append(f"Valid To: {cert.get('notAfter')}")
+                ssl_results.append(f"Version: {ssock.version()}")
+    except ssl.SSLError as e:
+        ssl_results.append(f"SSL/TLS Error: {e}")
+    except Exception as e:
+        ssl_results.append(f"General Error: {e}")
+    return ssl_results
 
 def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_data, vulnerabilities, ssl_check, passwords, sensitive_files, output_file):
     """Generate the scan report."""
