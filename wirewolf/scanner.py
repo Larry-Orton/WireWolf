@@ -153,6 +153,7 @@ EXAMPLES:
     except SystemExit:
         print("[!] Invalid command. Use `scan -h` for help.")
 
+
     def do_update(self, args):
         """Update WireWolf to the latest version."""
         print("[+] Checking for updates...")
