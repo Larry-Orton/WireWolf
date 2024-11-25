@@ -1,19 +1,38 @@
 import argparse
-import nmap
 import socket
-import requests
-from ipwhois import IPWhois
-from datetime import datetime
-from cmd import Cmd
-import itertools
+import subprocess
 import sys
 import threading
 import time
-import dns.resolver
-import subprocess
-from bs4 import BeautifulSoup
+from datetime import datetime
+from cmd import Cmd
 
-VERSION = "1.3.0"
+# Check and install required packages
+def check_and_install_packages():
+    required_packages = ["beautifulsoup4", "nmap", "requests", "ipwhois", "dnspython"]
+    for package in required_packages:
+        try:
+            __import__(package.split("-")[0])  # Convert package name to module name
+        except ImportError:
+            print(f"[!] {package} is not installed. Installing...")
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+                print(f"[+] {package} installed successfully.")
+            except Exception as e:
+                print(f"[!] Failed to install {package}: {e}")
+                sys.exit(1)
+
+# Run the dependency check at startup
+check_and_install_packages()
+
+# Import packages after ensuring they are installed
+import nmap
+import requests
+from ipwhois import IPWhois
+from bs4 import BeautifulSoup
+import dns.resolver
+
+VERSION = "1.4.1"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
@@ -33,7 +52,7 @@ class WireWolfShell(Cmd):
         "         \\___|_|\\___\\___/|_| |_| |_|\\___|      \n"
         "                                                   \n"
         "        WireWolf - Network Scanner Tool            \n"
-        "          Version: 1.3.0                           \n"
+        "          Version: 1.4.1                           \n"
         "          Author: Larry Orton                      \n"
         "=============================================\n\n"
         "Type `help` for available commands."
@@ -87,61 +106,7 @@ class WireWolfShell(Cmd):
                 args.sensitive_files
             )
         except SystemExit:
-            print("""
-=============================================
-          SCAN COMMAND HELP MENU            
-=============================================
-
-🔎 **SCAN COMMAND USAGE**
----------------------------------------------
-🐺 `scan -t <target> [options]`
-
-📝 **OPTIONS**
----------------------------------------------
--t, --target        Target IP or domain to scan (Required).
--p, --ports         Ports to scan (e.g., "80,443" or "1-1000"). Default: 80,443.
--o, --output        Save the scan results to the specified file (supports HTML output).
--f, --fast          Enable fast mode: Scan basic details only (IP, GeoIP, ports 80,443).
--v, --verbose       Enable detailed output during the scan.
---subdomains        Enumerate subdomains for the target domain.
---traceroute        Perform a traceroute to the target IP.
---dns               Retrieve DNS records (A, MX) for the target domain.
---vulnerabilities   Scan for vulnerabilities based on detected services.
---fingerprint       Perform web application fingerprinting (CMS, technologies).
---ssl-check         Check SSL/TLS configurations (protocols, ciphers, cert expiry).
---passwords         Simulate password brute force using a wordlist.
---sensitive-files   Scan for exposed sensitive files (.env, .git, backups).
--h, --help          Display this help menu.
-
-🚀 **EXAMPLES**
----------------------------------------------
-1️⃣ Basic Scan:
-   🐺 `scan -t example.com`
-
-2️⃣ Scan Custom Ports:
-   🐺 `scan -t example.com -p 22,8080`
-
-3️⃣ Save Report to File (HTML):
-   🐺 `scan -t example.com -o report.html`
-
-4️⃣ Check SSL/TLS:
-   🐺 `scan -t example.com --ssl-check`
-
-5️⃣ Web Fingerprinting:
-   🐺 `scan -t example.com --fingerprint`
-
-6️⃣ Find Sensitive Files:
-   🐺 `scan -t example.com --sensitive-files`
-
-7️⃣ Simulate Password Attacks:
-   🐺 `scan -t example.com --passwords`
-=============================================
-        """)
-
-    def do_exit(self, args):
-        """Exit the WireWolf shell."""
-        print("Goodbye!")
-        return True
+            print("Run `scan -h` to view the help menu.")
 
 
 def spinner(message):
@@ -208,69 +173,6 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
             passwords_data,
             output_file
         )
-
-
-# Implementing the specific feature functions
-def web_fingerprint(target):
-    """Perform web application fingerprinting."""
-    print("[+] Performing web application fingerprinting...")
-    try:
-        response = requests.get(f"http://{target}", timeout=5)
-        headers = response.headers
-        soup = BeautifulSoup(response.text, 'html.parser')
-        return {
-            "Title": soup.title.string if soup.title else "Unknown",
-            "Server": headers.get('Server', 'Unknown'),
-            "Powered-By": headers.get('X-Powered-By', 'Unknown')
-        }
-    except Exception as e:
-        print(f"[!] Web application fingerprinting failed: {e}")
-        return {}
-
-
-def check_ssl_config(target):
-    """Check SSL/TLS configurations."""
-    print("[+] Checking SSL/TLS configurations...")
-    try:
-        result = subprocess.run(
-            ["openssl", "s_client", "-connect", f"{target}:443"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=10
-        )
-        return result.stdout.decode()
-    except Exception as e:
-        print(f"[!] SSL check failed: {e}")
-        return "Error performing SSL check."
-
-
-def scan_sensitive_files(target):
-    """Check for sensitive files."""
-    print("[+] Scanning for sensitive files...")
-    files = [".env", ".git", "backup.zip"]
-    exposed_files = []
-    try:
-        for file in files:
-            response = requests.get(f"http://{target}/{file}", timeout=5)
-            if response.status_code == 200:
-                exposed_files.append(file)
-    except Exception as e:
-        print(f"[!] Sensitive file check failed: {e}")
-    return exposed_files
-
-
-def password_strength_check(target):
-    """Simulate password brute force."""
-    print("[+] Simulating password brute force...")
-    wordlist = ["admin", "password123", "qwerty"]
-    for password in wordlist:
-        try:
-            response = requests.post(f"http://{target}/login", data={"password": password}, timeout=5)
-            if response.status_code == 200:
-                return {"Weak Password": password}
-        except Exception:
-            pass
-    return "No weak passwords detected."
 
 
 def get_geoip(ip):
@@ -357,6 +259,61 @@ def scan_vulnerabilities(ports):
                 "severity": "Medium"
             })
     return vulnerabilities
+
+
+def web_fingerprint(target):
+    """Perform web application fingerprinting."""
+    try:
+        response = requests.get(f"http://{target}", timeout=5)
+        headers = response.headers
+        return headers
+    except Exception as e:
+        print(f"[!] Web fingerprinting failed: {e}")
+    return {}
+
+
+def check_ssl_config(target):
+    """Check SSL/TLS configurations."""
+    try:
+        result = subprocess.run(
+            ["openssl", "s_client", "-connect", f"{target}:443"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=10
+        )
+        return result.stdout.decode()
+    except Exception as e:
+        print(f"[!] SSL check failed: {e}")
+    return "Error performing SSL check."
+
+
+def scan_sensitive_files(target):
+    """Check for sensitive files."""
+    print("[+] Scanning for sensitive files...")
+    files = [".env", ".git", "backup.zip"]
+    exposed_files = []
+    try:
+        for file in files:
+            response = requests.get(f"http://{target}/{file}", timeout=5)
+            if response.status_code == 200:
+                exposed_files.append(file)
+    except Exception as e:
+        print(f"[!] Sensitive file check failed: {e}")
+    return exposed_files
+
+
+def password_strength_check(target):
+    """Simulate password brute force."""
+    print("[+] Simulating password brute force...")
+    wordlist = ["admin", "password123", "qwerty"]
+    for password in wordlist:
+        try:
+            response = requests.post(f"http://{target}/login", data={"password": password}, timeout=5)
+            if response.status_code == 200:
+                return {"Weak Password": password}
+        except Exception:
+            pass
+    return "No weak passwords detected."
 
 
 def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_data, vulnerabilities, fingerprint, ssl_config, sensitive_files, passwords, output_file):
