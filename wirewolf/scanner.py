@@ -1,39 +1,18 @@
 import argparse
+import nmap
 import socket
-import subprocess
+import requests
+from ipwhois import IPWhois
+from datetime import datetime
+from cmd import Cmd
+import itertools
 import sys
 import threading
 import time
-import itertools
-from datetime import datetime
-from cmd import Cmd
-
-# Check and install required packages
-def check_and_install_packages():
-    required_packages = ["beautifulsoup4", "nmap", "requests", "ipwhois", "dnspython"]
-    for package in required_packages:
-        try:
-            __import__(package.split("-")[0])  # Convert package name to module name
-        except ImportError:
-            print(f"[!] {package} is not installed. Installing...")
-            try:
-                subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-                print(f"[+] {package} installed successfully.")
-            except Exception as e:
-                print(f"[!] Failed to install {package}: {e}")
-                sys.exit(1)
-
-# Run the dependency check at startup
-check_and_install_packages()
-
-# Import packages after ensuring they are installed
-import nmap
-import requests
-from ipwhois import IPWhois
-from bs4 import BeautifulSoup
 import dns.resolver
+import subprocess
 
-VERSION = "1.7.4"
+VERSION = "1.2.1"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
@@ -53,7 +32,7 @@ class WireWolfShell(Cmd):
         "         \\___|_|\\___\\___/|_| |_| |_|\\___|      \n"
         "                                                   \n"
         "        WireWolf - Network Scanner Tool            \n"
-        "          Version: 1.7.4                           \n"
+        "          Version: 1.2.1                           \n"
         "          Author: Larry Orton                      \n"
         "=============================================\n\n"
         "Type `help` for available commands."
@@ -61,40 +40,31 @@ class WireWolfShell(Cmd):
     )
 
     def do_scan(self, args):
-        """Perform a network scan. Type `scan -h` for detailed options."""
+        """Scan a target. Usage: scan -t <target> [options]"""
         parser = argparse.ArgumentParser(
             prog="scan",
             description=(
-                "WireWolf Network Scanner - Perform advanced scans with options for:\n"
-                "- GeoIP lookup\n"
-                "- Subdomains enumeration\n"
-                "- DNS record fetching\n"
-                "- Vulnerability analysis\n"
-                "- SSL/TLS configuration checks\n"
-                "- Sensitive files search\n"
-                "- Password brute-force simulations\n"
+                "WireWolf Network Scanner - Perform detailed network scans with options for "
+                "GeoIP lookup, subdomains, DNS records, vulnerabilities, and more."
             ),
             formatter_class=argparse.RawTextHelpFormatter,
             add_help=False,
         )
 
         parser.add_argument('-t', '--target', required=True, help='Target IP or domain to scan (required).')
-        parser.add_argument('-p', '--ports', default='80,443', help='Specify ports to scan (Default: 80,443).')
-        parser.add_argument('-o', '--output', help='Save the scan results to a file (HTML format supported).')
+        parser.add_argument('-p', '--ports', default='80,443', help='Specify ports to scan. (Default: 80,443)')
+        parser.add_argument('-o', '--output', help='Save the scan results to a specified file.')
         parser.add_argument('-f', '--fast', action='store_true', help='Enable fast mode: Scan basic details only.')
         parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output.')
         parser.add_argument('--subdomains', action='store_true', help='Enumerate subdomains for the target domain.')
-        parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target IP.')
-        parser.add_argument('--dns', action='store_true', help='Fetch DNS records (A, MX) for the target.')
-        parser.add_argument('--vulnerabilities', action='store_true', help='Scan for vulnerabilities.')
-        parser.add_argument('--fingerprint', action='store_true', help='Perform web application fingerprinting.')
-        parser.add_argument('--ssl-check', action='store_true', help='Check SSL/TLS configurations.')
-        parser.add_argument('--passwords', action='store_true', help='Simulate password brute force.')
-        parser.add_argument('--sensitive-files', action='store_true', help='Search for sensitive files.')
-        parser.add_argument('-h', '--help', action='help', help='Display this help menu.')
+        parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target')
+        parser.add_argument('--dns', action='store_true', help='Retrieve DNS records for the target domain.')
+        parser.add_argument('--vulnerabilities', action='store_true', help='Scan for vulnerabilities based on detected services.')
+        parser.add_argument('-h', '--help', action='help', help='Show this help menu.')
 
         try:
             args = parser.parse_args(args.split())
+            # Call the scanning function with parsed arguments
             run_with_spinner(
                 perform_scan,
                 args.target,
@@ -105,44 +75,66 @@ class WireWolfShell(Cmd):
                 args.subdomains,
                 args.traceroute,
                 args.dns,
-                args.vulnerabilities,
-                args.fingerprint,
-                args.ssl_check,
-                args.passwords,
-                args.sensitive_files
+                args.vulnerabilities
             )
         except SystemExit:
             print("""
 =============================================
-              SCAN COMMAND HELP             
+          SCAN COMMAND HELP MENU            
 =============================================
-📌 Usage: `scan -t <target> [options]`
+
+🔎 **SCAN COMMAND USAGE**
 ---------------------------------------------
-🎯 Required Options:
--t, --target        Target IP or domain to scan.
+🐺 `scan -t <target> [options]`
 
-🛠️ Additional Options:
--p, --ports         Ports to scan (e.g., 80,443). Default: 80,443.
--o, --output        Save the scan results to a file (HTML supported).
--f, --fast          Enable fast mode: Scan IP, GeoIP, ports 80/443 only.
--v, --verbose       Display detailed scan progress.
---subdomains        Enumerate subdomains for the domain.
+📝 **OPTIONS**
+---------------------------------------------
+-t, --target        Target IP or domain to scan (Required).
+-p, --ports         Ports to scan (e.g., "80,443" or "1-1000"). Default: 80,443.
+-o, --output        Save the scan results to the specified file.
+-f, --fast          Enable fast mode: Scan basic details only (IP, GeoIP, ports 80,443).
+-v, --verbose       Enable detailed output during the scan.
+--subdomains        Enumerate subdomains for the target domain.
 --traceroute        Perform a traceroute to the target IP.
---dns               Retrieve DNS records (A, MX).
---vulnerabilities   Scan for vulnerabilities on detected services.
---fingerprint       Perform web application fingerprinting.
---ssl-check         Check SSL/TLS configurations.
---passwords         Simulate password brute force.
---sensitive-files   Check for exposed sensitive files.
+--dns               Retrieve DNS records (A, MX) for the target domain.
+--vulnerabilities   Scan for vulnerabilities based on detected services.
+-h, --help          Display this help menu.
 
-📝 Examples:
-1️⃣ Basic Scan: `scan -t example.com`
-2️⃣ Save Report: `scan -t example.com -o results.html`
-3️⃣ Subdomain Scan: `scan -t example.com --subdomains`
-4️⃣ Full Scan: `scan -t example.com --dns --vulnerabilities --ssl-check`
+🚀 **EXAMPLES**
+---------------------------------------------
+1️⃣ Basic Scan:
+   🐺 `scan -t example.com`
 
+2️⃣ Scan Custom Ports:
+   🐺 `scan -t example.com -p 22,8080`
+
+3️⃣ Save Report to File:
+   🐺 `scan -t example.com -o results.txt`
+
+4️⃣ Enable Fast Mode:
+   🐺 `scan -t example.com -f`
+
+5️⃣ Find Subdomains:
+   🐺 `scan -t example.com --subdomains`
+
+6️⃣ Perform Traceroute:
+   🐺 `scan -t 8.8.8.8 --traceroute`
+
+7️⃣ Lookup DNS Records:
+   🐺 `scan -t example.com --dns`
+
+8️⃣ Scan for Vulnerabilities:
+   🐺 `scan -t example.com --vulnerabilities`
+
+✨ **TIP**: Combine options for a comprehensive scan:
+   🐺 `scan -t example.com --dns --vulnerabilities --subdomains`
 =============================================
-            """)
+        """)
+
+    def do_exit(self, args):
+        """Exit the WireWolf shell."""
+        print("Goodbye!")
+        return True
 
 
 def spinner(message):
@@ -173,86 +165,126 @@ def run_with_spinner(task_function, *args):
         sys.stdout.flush()
 
 
-def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, vulnerabilities, fingerprint, ssl_check, passwords, sensitive_files):
-    """Perform a full or fast scan based on user input."""
+def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, vulnerabilities):
+    """Perform the full or fast scan based on user input."""
     ip = socket.gethostbyname(target)
 
     if fast:
+        # Fast mode: Only IP resolution, GeoIP, and two common ports
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, '80,443', verbose)
-        generate_report(target, ip, geo_data, port_data, [], [], {}, [], {}, "", [], "", output_file)
+        generate_report(target, ip, geo_data, port_data, [], [], {}, [], output_file)
     else:
+        # Full scan
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, ports, verbose)
-        subdomain_data = enumerate_subdomains(target) if subdomains else []
+        subdomains_data = enumerate_subdomains(target) if subdomains else []
         traceroute_data = trace_route(ip) if traceroute else []
         dns_data = lookup_dns(target) if dns_lookup else {}
         vulnerabilities_data = scan_vulnerabilities(port_data) if vulnerabilities else []
-        fingerprint_data = web_fingerprint(target) if fingerprint else {}
-        ssl_data = check_ssl_config(target) if ssl_check else {}
-        sensitive_files_data = scan_sensitive_files(target) if sensitive_files else []
-        passwords_data = password_strength_check(target) if passwords else []
 
         generate_report(
-            target, ip, geo_data, port_data, subdomain_data,
-            traceroute_data, dns_data, vulnerabilities_data,
-            fingerprint_data, ssl_data, sensitive_files_data,
-            passwords_data, output_file
+            target, ip, geo_data, port_data, subdomains_data,
+            traceroute_data, dns_data, vulnerabilities_data, output_file
         )
 
 
-def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_data, vulnerabilities, fingerprint, ssl_config, sensitive_files, passwords, output_file):
-    """Generate a detailed scan report."""
+# GeoIP Lookup
+def get_geoip(ip):
+    """Retrieve geographic information for the given IP."""
+    try:
+        response = requests.get(f"http://ip-api.com/json/{ip}")
+        return response.json() if response.status_code == 200 else {}
+    except Exception as e:
+        print(f"[!] GeoIP lookup failed: {e}")
+        return {}
+
+
+# Port Scanning
+def scan_ports(ip, ports, verbose):
+    """Scan specified ports using Nmap."""
+    results = []
+    try:
+        nm = nmap.PortScanner()
+        nm.scan(ip, ports, '-T4')
+        for port in map(int, ports.split(',')):
+            state = nm[ip]['tcp'][port]['state'] if port in nm[ip]['tcp'] else "unknown"
+            service = nm[ip]['tcp'][port].get('name', 'unknown') if port in nm[ip]['tcp'] else "unknown"
+            results.append((port, state, service))
+    except Exception as e:
+        print(f"[!] Port scanning failed: {e}")
+    return results
+
+
+# DNS Lookup
+def lookup_dns(domain):
+    """Retrieve DNS records."""
+    records = {}
+    try:
+        records["A"] = [rdata.to_text() for rdata in dns.resolver.resolve(domain, "A")]
+        records["MX"] = [rdata.to_text() for rdata in dns.resolver.resolve(domain, "MX")]
+    except Exception as e:
+        print(f"[!] DNS lookup failed: {e}")
+    return records
+
+
+# Subdomain Enumeration
+def enumerate_subdomains(domain):
+    """Enumerate subdomains."""
+    subdomains = []
+    try:
+        subdomain_list = [f"www.{domain}", f"mail.{domain}"]
+        for sub in subdomain_list:
+            try:
+                socket.gethostbyname(sub)
+                subdomains.append(sub)
+            except socket.gaierror:
+                pass
+    except Exception as e:
+        print(f"[!] Subdomain enumeration failed: {e}")
+    return subdomains
+
+
+# Vulnerability Scanning
+def scan_vulnerabilities(ports):
+    """Scan for vulnerabilities."""
+    vulnerabilities = []
+    try:
+        for port, state, service in ports:
+            if service != "unknown":
+                response = requests.get(f"https://cve.circl.lu/api/search/{service}")
+                if response.status_code == 200:
+                    results = response.json()
+                    for cve in results.get("results", []):
+                        vulnerabilities.append({
+                            "port": port,
+                            "cve": cve.get("id", "Unknown"),
+                            "description": cve.get("summary", "No description available")
+                        })
+    except Exception as e:
+        print(f"[!] Vulnerability scan failed: {e}")
+    return vulnerabilities
+
+
+# Generate Scan Report
+def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_data, vulnerabilities, output_file):
+    """Generate the scan report."""
     report = [
-        "==========================",
-        " WireWolf Network Scanner",
-        "==========================",
         f"Target: {target} ({ip})",
         f"Scan Date: {datetime.now()}",
-        "================================"
+        "\n[+] GeoIP Information:",
+        f"    Country: {geo_data.get('country', 'unknown')}",
+        f"    Region: {geo_data.get('regionName', 'unknown')}",
+        f"    City: {geo_data.get('city', 'unknown')}",
+        "\n[+] Open Ports:",
+        *[f"    {port}/tcp: {state} ({service})" for port, state, service in ports],
+        "\n[+] DNS Records:",
+        *[f"    {key}: {value}" for key, value in dns_data.items()],
+        "\n[+] Subdomains:",
+        *subdomains,
+        "\n[+] Vulnerabilities:",
+        *[f"    {vuln['port']}/tcp: {vuln['cve']} - {vuln['description']}" for vuln in vulnerabilities]
     ]
-
-    # GeoIP Information
-    report.append("\n[+] GeoIP Information:")
-    for key, value in geo_data.items():
-        report.append(f"    {key.capitalize()}: {value}")
-
-    # Open Ports
-    report.append("\n[+] Open Ports:")
-    for port, state, service in ports:
-        report.append(f"    {port}/tcp: {state} ({service})")
-
-    # Subdomains
-    if subdomains:
-        report.append("\n[+] Subdomains Found:")
-        for subdomain in subdomains:
-            report.append(f"    {subdomain}")
-
-    # Vulnerabilities
-    if vulnerabilities:
-        report.append("\n[+] Identified Vulnerabilities:")
-        for vuln in vulnerabilities:
-            report.append(f"    - {vuln['service']} (Port: {vuln['port']}): {vuln['cve']}\n      {vuln['description']}")
-
-    # Sensitive Files
-    if sensitive_files:
-        report.append("\n[+] Sensitive Files Found:")
-        for file in sensitive_files:
-            report.append(f"    {file}")
-
-    # SSL Configurations
-    if ssl_config:
-        report.append("\n[+] SSL/TLS Configuration:")
-        for key, value in ssl_config.items():
-            report.append(f"    {key.capitalize()}: {value}")
-
-    # Password Brute Force
-    if passwords:
-        report.append("\n[+] Password Strength:")
-        for result in passwords:
-            report.append(f"    {result}")
-
-    # Print Report
     print("\n".join(report))
 
 
