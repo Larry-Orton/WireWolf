@@ -272,24 +272,6 @@ def password_strength_check(target):
             pass
     return "No weak passwords detected."
 
-def scan_ports(ip, ports, verbose):
-    """Scan specified ports using Nmap."""
-    results = []
-    try:
-        nm = nmap.PortScanner()
-        if verbose:
-            print(f"[Verbose] Scanning ports: {ports} for {ip}...")
-        nm.scan(ip, ports, '-T4')
-        for port in sorted(map(int, ports.split(','))):
-            state = nm[ip]['tcp'][port]['state'] if port in nm[ip]['tcp'] else "unknown"
-            service = nm[ip]['tcp'][port].get('name', 'unknown') if port in nm[ip]['tcp'] else "unknown"
-            results.append((port, state, service))
-    except KeyError:
-        print(f"[!] Error: Unable to scan ports for {ip}. Ensure the IP is reachable.")
-    except Exception as e:
-        print(f"[!] An error occurred during port scanning: {e}")
-    return results
-
 
 def get_geoip(ip):
     """Retrieve geographic information for the given IP using ip-api.com."""
@@ -305,53 +287,24 @@ def get_geoip(ip):
                 'latitude': data.get('lat', 'Unknown'),
                 'longitude': data.get('lon', 'Unknown')
             }
-        else:
-            print(f"[!] GeoIP lookup failed: {data.get('message', 'Unknown error')}")
     except Exception as e:
         print(f"[!] GeoIP lookup failed: {e}")
     return geo_data
 
 
-def scan_vulnerabilities(service_data):
-    """Scan for vulnerabilities based on identified services."""
-    vulnerabilities = []
+def scan_ports(ip, ports, verbose):
+    """Scan specified ports using Nmap."""
+    results = []
     try:
-        for service in service_data:
-            port, state, service_name = service
-            if service_name != 'unknown':
-                print(f"Scanning vulnerabilities for {service_name}...")
-                response = requests.get(f"https://cve.circl.lu/api/search/{service_name}")
-                if response.status_code == 200:
-                    cve_data = response.json()
-                    if 'results' in cve_data:
-                        for item in cve_data['results']:
-                            vulnerabilities.append({
-                                'service': service_name,
-                                'port': port,
-                                'cve': item.get('id', 'Unknown CVE ID'),
-                                'description': item.get('summary', 'No description available'),
-                                'score': item.get('cvss', {}).get('score', 'N/A')
-                            })
+        nm = nmap.PortScanner()
+        nm.scan(ip, ports, '-T4')
+        for port in sorted(map(int, ports.split(','))):
+            state = nm[ip]['tcp'][port]['state'] if port in nm[ip]['tcp'] else "unknown"
+            service = nm[ip]['tcp'][port].get('name', 'unknown') if port in nm[ip]['tcp'] else "unknown"
+            results.append((port, state, service))
     except Exception as e:
-        print(f"[!] Vulnerability scanning failed: {e}")
-    return vulnerabilities
-
-
-def whois_lookup(ip):
-    """Perform WHOIS lookup for the target IP."""
-    whois_data = {}
-    try:
-        obj = IPWhois(ip)
-        result = obj.lookup_rdap()
-        whois_data = {
-            'asn': result.get('asn', 'Unknown'),
-            'asn_description': result.get('asn_description', 'Unknown'),
-            'asn_cidr': result.get('asn_cidr', 'Unknown'),
-            'asn_country_code': result.get('asn_country_code', 'Unknown')
-        }
-    except Exception as e:
-        print(f"[!] WHOIS lookup failed: {e}")
-    return whois_data
+        print(f"[!] An error occurred during port scanning: {e}")
+    return results
 
 
 def enumerate_subdomains(domain):
@@ -365,8 +318,8 @@ def enumerate_subdomains(domain):
                 subdomains.append(sub)
             except socket.gaierror:
                 pass
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[!] Subdomain enumeration failed: {e}")
     return subdomains
 
 
@@ -376,8 +329,8 @@ def trace_route(ip):
     try:
         result = subprocess.run(["traceroute", ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         traceroute_output = result.stdout.decode().splitlines()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[!] Traceroute failed: {e}")
     return traceroute_output
 
 
@@ -387,99 +340,71 @@ def lookup_dns(domain):
     try:
         dns_data["A"] = [rdata.to_text() for rdata in dns.resolver.resolve(domain, "A")]
         dns_data["MX"] = [rdata.to_text() for rdata in dns.resolver.resolve(domain, "MX")]
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[!] DNS lookup failed: {e}")
     return dns_data
 
 
-def generate_report(target, ip, geo_data, ports, whois_data, subdomains, traceroute, dns_data, vulnerabilities, output_file):
-    """Generate a comprehensive report based on the scan results."""
-    report = []
-    report.append("==========================")
-    report.append(" WireWolf Network Scanner")
-    report.append("==========================\n")
-    report.append(f"Target: {target} ({ip})")
-    report.append(f"Scan Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    report.append("================================\n")
+def scan_vulnerabilities(ports):
+    """Simulate a vulnerability scan."""
+    vulnerabilities = []
+    for port, state, service in ports:
+        if service != "unknown":
+            vulnerabilities.append({
+                "service": service,
+                "port": port,
+                "description": "Simulated vulnerability description.",
+                "severity": "Medium"
+            })
+    return vulnerabilities
 
-    report.append("[+] Resolved IP Address:")
-    report.append(f"    - {ip}\n")
 
-    if geo_data:
-        report.append("[+] GeoIP Information:")
-        report.append(f"    - Country: {geo_data.get('country', 'unknown')}")
-        report.append(f"    - Region: {geo_data.get('region', 'unknown')}")
-        report.append(f"    - City: {geo_data.get('city', 'unknown')}")
-        report.append(f"    - Latitude: {geo_data.get('latitude', 'unknown')}")
-        report.append(f"    - Longitude: {geo_data.get('longitude', 'unknown')}\n")
+def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_data, vulnerabilities, fingerprint, ssl_config, sensitive_files, passwords, output_file):
+    """Generate a detailed scan report."""
+    report = [
+        "==========================",
+        " WireWolf Network Scanner",
+        "==========================",
+        f"Target: {target} ({ip})",
+        f"Scan Date: {datetime.now()}",
+        "================================"
+    ]
 
-    if ports:
-        report.append("[+] Open Ports:")
-        for port, state, service in ports:
-            report.append(f"    - {port}/tcp: {state} ({service})")
-        report.append("")
+    report.append("\n[+] GeoIP Information:")
+    for key, value in geo_data.items():
+        report.append(f"    {key.capitalize()}: {value}")
 
-    if subdomains:
-        report.append("[+] Subdomains Found:")
-        for subdomain in subdomains:
-            report.append(f"    - {subdomain}")
-        report.append("")
+    report.append("\n[+] Open Ports:")
+    for port, state, service in ports:
+        report.append(f"    {port}/tcp: {state} ({service})")
 
-    if traceroute:
-        report.append("[+] Traceroute Results:")
-        for hop in traceroute:
-            report.append(f"    {hop}")
-        report.append("")
+    report.append("\n[+] Vulnerabilities:")
+    for vuln in vulnerabilities:
+        report.append(f"    Port {vuln['port']} - {vuln['service']}: {vuln['description']} (Severity: {vuln['severity']})")
 
-    if dns_data:
-        report.append("[+] DNS Records:")
-        for record_type, records in dns_data.items():
-            report.append(f"    {record_type}:")
-            for record in records:
-                report.append(f"      - {record}")
-        report.append("")
+    report.append("\n[+] SSL Configuration:")
+    report.append(ssl_config or "No SSL information available.")
 
-    if whois_data:
-        report.append("[+] WHOIS Information:")
-        report.append(f"    - ASN: {whois_data.get('asn', 'unknown')}")
-        report.append(f"    - Organization: {whois_data.get('asn_description', 'unknown')}")
-        report.append(f"    - CIDR: {whois_data.get('asn_cidr', 'unknown')}")
-        report.append(f"    - Country: {whois_data.get('asn_country_code', 'unknown')}")
-        report.append("")
-
-    if vulnerabilities:
-        report.append("[+] Identified Vulnerabilities:")
-        for vuln in vulnerabilities:
-            report.append(f"    - Service: {vuln['service']} (Port: {vuln['port']})")
-            report.append(f"      CVE: {vuln['cve']} | Score: {vuln['score']}")
-            report.append(f"      Description: {vuln['description']}\n")
+    report.append("\n[+] Sensitive Files:")
+    if sensitive_files:
+        report.extend(f"    {file}" for file in sensitive_files)
     else:
-        # Funny message if no vulnerabilities are found
-        report.append("[+] Vulnerability Scan Results:")
-        report.append("    - No Vuln, She's Clean! 🚿✨\n")
+        report.append("    None found.")
 
-    report.append("--------------------------------")
-    report.append("Scan Complete.")
-    report.append("")
+    report.append("\n[+] Password Analysis:")
+    report.append(passwords if passwords else "    No weak passwords detected.")
 
-    # Print the report to the console
-    report_str = "\n".join(report)
-    print(report_str)
-
-    # Save to file if output_file is specified
     if output_file:
-        try:
-            with open(output_file, 'w') as f:
-                f.write(report_str)
-            print(f"[+] Report saved to {output_file}")
-        except Exception as e:
-            print(f"[!] Failed to save report: {e}")
+        with open(output_file, 'w') as file:
+            file.write("\n".join(report))
+        print(f"[+] Report saved to {output_file}")
+
+    print("\n".join(report))
 
 
 def main():
-    """Entry point for the tool."""
-    shell = WireWolfShell()
-    shell.cmdloop()
+    """Main entry point for WireWolf."""
+    WireWolfShell().cmdloop()
 
 
 if __name__ == "__main__":
