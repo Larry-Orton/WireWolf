@@ -72,8 +72,10 @@ class WireWolfShell(Cmd):
         else:
             print("[!] Invalid selection. Returning to menu.")
 
-    def do_scan(self, args):
-    """Scan a target. Usage: scan -t <target> [options]"""
+  def do_scan(self, args):
+    """
+    Scan a target. Usage: scan -t <target> [options]
+    """
     parser = argparse.ArgumentParser(
         prog="scan",
         description="""WireWolf - Network Scanner Tool
