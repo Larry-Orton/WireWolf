@@ -229,7 +229,7 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
     if fast:
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, '80,443', verbose)
-        generate_report(target, ip, geo_data, port_data, [], [], {}, [], output_file)
+        generate_report(target, ip, geo_data, port_data, [], [], {}, [], [], [], [], output_file)
     else:
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, ports, verbose)
@@ -320,7 +320,7 @@ def scan_vulnerabilities(ports):
     return vulnerabilities
 
 
-def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_data, vulnerabilities, output_file):
+def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_data, vulnerabilities, ssl_check, passwords, sensitive_files, output_file):
     """Generate the scan report."""
     report = [
         f"Target: {target} ({ip})",
@@ -331,14 +331,54 @@ def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_dat
         f"    City: {geo_data.get('city', 'unknown')}",
         "\n[+] Open Ports:",
         *[f"    {port}/tcp: {state} ({service})" for port, state, service in ports],
-        "\n[+] DNS Records:",
-        *[f"    {key}: {value}" for key, value in dns_data.items()],
-        "\n[+] Subdomains:",
-        *subdomains,
-        "\n[+] Vulnerabilities:",
-        *[f"    {vuln['port']}/tcp: {vuln['cve']} - {vuln['description']}" for vuln in vulnerabilities]
     ]
+
+    if subdomains:
+        report.append("\n[+] Subdomains Found:")
+        report.extend([f"    - {sub}" for sub in subdomains])
+
+    if traceroute:
+        report.append("\n[+] Traceroute Results:")
+        report.extend([f"    {hop}" for hop in traceroute])
+
+    if dns_data:
+        report.append("\n[+] DNS Records:")
+        for record_type, records in dns_data.items():
+            report.append(f"    {record_type}:")
+            report.extend([f"      - {record}" for record in records])
+
+    if vulnerabilities:
+        report.append("\n[+] Vulnerabilities Found:")
+        for vuln in vulnerabilities:
+            report.append(f"    - {vuln['port']}/tcp: {vuln['cve']} - {vuln['description']}")
+    else:
+        report.append("\n[+] Vulnerabilities Found: None (No issues detected!)")
+
+    if ssl_check:
+        report.append("\n[+] SSL/TLS Configuration:")
+        report.extend([f"    {item}" for item in ssl_check])
+
+    if passwords:
+        report.append("\n[+] Password Strength:")
+        report.extend([f"    {item}" for item in passwords])
+
+    if sensitive_files:
+        report.append("\n[+] Sensitive Files:")
+        report.extend([f"    {item}" for item in sensitive_files])
+
+    report.append("\n--------------------------------")
+    report.append("Scan Complete.")
     print("\n".join(report))
+
+    # Save to file if specified
+    if output_file:
+        try:
+            with open(output_file, 'w') as f:
+                f.write("\n".join(report))
+            print(f"[+] Report saved to {output_file}")
+        except Exception as e:
+            print(f"[!] Failed to save report: {e}")
+
 
 
 def main():
