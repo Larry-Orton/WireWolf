@@ -40,14 +40,14 @@ class WireWolfShell(Cmd):
     )
 
     def do_update(self, args):
-    """Update WireWolf to the latest version."""
-    print("[+] Checking for updates...")
-    try:
-        subprocess.run(["pipx", "reinstall", "WireWolf"], check=True)
-        print("[+] WireWolf updated successfully! 🚀")
-    except subprocess.CalledProcessError as e:
-        print("[!] Update failed. Please ensure pipx is installed and configured correctly.")
-        print(f"[!] Error: {e}")
+        """Update WireWolf to the latest version."""
+        print("[+] Checking for updates...")
+        try:
+            subprocess.run(["pipx", "reinstall", "WireWolf"], check=True)
+            print("[+] WireWolf updated successfully! 🚀")
+        except subprocess.CalledProcessError as e:
+            print("[!] Update failed. Please ensure pipx is installed and configured correctly.")
+            print(f"[!] Error: {e}")
 
 
     def do_scan(self, args):
