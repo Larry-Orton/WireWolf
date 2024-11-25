@@ -72,13 +72,13 @@ class WireWolfShell(Cmd):
         else:
             print("[!] Invalid selection. Returning to menu.")
 
-  def do_scan(self, args):
-    """
-    Scan a target. Usage: scan -t <target> [options]
-    """
-    parser = argparse.ArgumentParser(
-        prog="scan",
-        description="""WireWolf - Network Scanner Tool
+    def do_scan(self, args):
+        """
+        Scan a target. Usage: scan -t <target> [options]
+        """
+        parser = argparse.ArgumentParser(
+            prog="scan",
+            description="""WireWolf - Network Scanner Tool
 
 USAGE:
     scan -t <target> [OPTIONS]
@@ -112,49 +112,48 @@ EXAMPLES:
     Fast Mode:
         scan -t example.com -f
 """,
-        formatter_class=argparse.RawTextHelpFormatter,
-        add_help=False,
-    )
-
-    # Define arguments
-    parser.add_argument('-t', '--target', help='Target IP or domain to scan (required).')
-    parser.add_argument('-p', '--ports', default='80,443', help='Specify ports to scan. (Default: 80,443)')
-    parser.add_argument('-o', '--output', help='Save the scan results to a specified file.')
-    parser.add_argument('-f', '--fast', action='store_true', help='Enable fast mode: Scan basic details only.')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output.')
-    parser.add_argument('--subdomains', action='store_true', help='Enumerate subdomains for the target domain.')
-    parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target.')
-    parser.add_argument('--dns', action='store_true', help='Retrieve DNS records for the target domain.')
-    parser.add_argument('--vulnerabilities', action='store_true', help='Scan for vulnerabilities.')
-    parser.add_argument('--ssl-check', action='store_true', help='Check SSL/TLS configuration.')
-    parser.add_argument('-h', '--help', action='store_true', help='Show this help menu.')
-
-    try:
-        # Parse arguments
-        parsed_args = parser.parse_args(args.split())
-
-        # If help is requested, display help menu and exit
-        if parsed_args.help or not parsed_args.target:
-            print(parser.description)
-            return
-
-        # Execute the scan with spinner
-        run_with_spinner(
-            perform_scan,
-            parsed_args.target,
-            parsed_args.ports,
-            parsed_args.output,
-            parsed_args.verbose,
-            parsed_args.fast,
-            parsed_args.subdomains,
-            parsed_args.traceroute,
-            parsed_args.dns,
-            parsed_args.vulnerabilities,
-            parsed_args.ssl_check
+            formatter_class=argparse.RawTextHelpFormatter,
+            add_help=False,
         )
-    except SystemExit:
-        print("[!] Invalid command. Use `scan -h` for help.")
 
+        # Define arguments
+        parser.add_argument('-t', '--target', help='Target IP or domain to scan (required).')
+        parser.add_argument('-p', '--ports', default='80,443', help='Specify ports to scan. (Default: 80,443)')
+        parser.add_argument('-o', '--output', help='Save the scan results to a specified file.')
+        parser.add_argument('-f', '--fast', action='store_true', help='Enable fast mode: Scan basic details only.')
+        parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output.')
+        parser.add_argument('--subdomains', action='store_true', help='Enumerate subdomains for the target domain.')
+        parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target.')
+        parser.add_argument('--dns', action='store_true', help='Retrieve DNS records for the target domain.')
+        parser.add_argument('--vulnerabilities', action='store_true', help='Scan for vulnerabilities.')
+        parser.add_argument('--ssl-check', action='store_true', help='Check SSL/TLS configuration.')
+        parser.add_argument('-h', '--help', action='store_true', help='Show this help menu.')
+
+        try:
+            # Parse arguments
+            parsed_args = parser.parse_args(args.split())
+
+            # If help is requested, print the custom help and exit
+            if parsed_args.help or not parsed_args.target:
+                print(parser.description)
+                return
+
+            # Execute the scan with spinner
+            run_with_spinner(
+                perform_scan,
+                parsed_args.target,
+                parsed_args.ports,
+                parsed_args.output,
+                parsed_args.verbose,
+                parsed_args.fast,
+                parsed_args.subdomains,
+                parsed_args.traceroute,
+                parsed_args.dns,
+                parsed_args.vulnerabilities,
+                parsed_args.ssl_check
+            )
+        except SystemExit:
+            print("[!] Invalid command. Use `scan -h` for help.")
 
     def do_update(self, args):
         """Update WireWolf to the latest version."""
@@ -201,9 +200,8 @@ def run_with_spinner(task_function, *args):
         sys.stdout.flush()
 
 
-# Full Scan Logic
+# Perform Scan Logic
 def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, vulnerabilities, ssl_check):
-    """Perform the full or fast scan based on user input."""
     try:
         ip = socket.gethostbyname(target)
     except socket.gaierror:
@@ -215,24 +213,36 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
     if fast:
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, '80,443', verbose)
-        generate_report(target, ip, geo_data, port_data, [], [], {}, [], None, output_file)
-        return
+        generate_report(target, ip, geo_data, port_data, [], [], {}, [], output_file)
+    else:
+        geo_data = get_geoip(ip)
+        port_data = scan_ports(ip, ports, verbose)
+        subdomains_data = enumerate_subdomains(target) if subdomains else []
+        traceroute_data = trace_route(ip) if traceroute else []
+        dns_data = lookup_dns(target) if dns_lookup else {}
+        vulnerabilities_data = scan_vulnerabilities(port_data) if vulnerabilities else []
+        ssl_check_data = check_ssl(ip, target) if ssl_check else []
 
-    geo_data = get_geoip(ip)
-    port_data = scan_ports(ip, ports, verbose)
-    subdomains_data = enumerate_subdomains(target) if subdomains else []
-    traceroute_data = trace_route(ip) if traceroute else []
-    dns_data = lookup_dns(target) if dns_lookup else {}
-    vulnerabilities_data = scan_vulnerabilities(port_data) if vulnerabilities else []
-    ssl_check_data = check_ssl(ip) if ssl_check else None
-
-    generate_report(
-        target, ip, geo_data, port_data, subdomains_data,
-        traceroute_data, dns_data, vulnerabilities_data,
-        ssl_check_data, output_file
-    )
+        generate_report(
+            target, ip, geo_data, port_data, subdomains_data,
+            traceroute_data, dns_data, vulnerabilities_data, ssl_check_data, output_file
+        )
 
 
+# SSL/TLS Check Function
+def check_ssl(ip, domain):
+    """Check SSL/TLS configuration."""
+    try:
+        context = ssl.create_default_context()
+        with socket.create_connection((ip, 443)) as sock:
+            with context.wrap_socket(sock, server_hostname=domain) as ssock:
+                cert = ssock.getpeercert()
+                return {"certificate": cert}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# Additional Scanning Functions
 def get_geoip(ip):
     """Retrieve geographic information for the given IP."""
     try:
@@ -305,20 +315,6 @@ def scan_vulnerabilities(ports):
     return vulnerabilities
 
 
-def check_ssl(target):
-    """Check SSL/TLS configuration."""
-    try:
-        context = ssl.create_default_context()
-        with socket.create_connection((target, 443)) as sock:
-            with context.wrap_socket(sock, server_hostname=target) as ssock:
-                return {
-                    "protocol": ssock.version(),
-                    "cipher": ssock.cipher()
-                }
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-
 def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_data, vulnerabilities, ssl_check_data, output_file):
     """Generate the scan report."""
     report = [
@@ -335,26 +331,13 @@ def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_dat
         "\n[+] Subdomains:",
         *subdomains,
         "\n[+] Vulnerabilities:",
-        *[f"    {vuln['port']}/tcp: {vuln['cve']} - {vuln['description']}" for vuln in vulnerabilities]
+        *[f"    {vuln['port']}/tcp: {vuln['cve']} - {vuln['description']}" for vuln in vulnerabilities],
+        "\n[+] SSL/TLS Configuration:",
+        ssl_check_data.get("certificate", "No SSL/TLS data available")
+        if not ssl_check_data.get("error")
+        else f"    SSL/TLS Error: {ssl_check_data.get('error')}"
     ]
-
-    if ssl_check_data:
-        report.append("\n[+] SSL/TLS Configuration:")
-        if ssl_check_data.get("status") == "error":
-            report.append(f"    SSL/TLS Error: {ssl_check_data['message']}")
-        else:
-            report.append(f"    Protocol: {ssl_check_data['protocol']}")
-            report.append(f"    Cipher: {ssl_check_data['cipher']}")
-
-    if output_file:
-        try:
-            with open(output_file, 'w') as f:
-                f.write("\n".join(report))
-            print(f"[+] Results saved to {output_file}")
-        except Exception as e:
-            print(f"[!] Failed to save report: {e}")
-    else:
-        print("\n".join(report))
+    print("\n".join(report))
 
 
 def main():
