@@ -12,30 +12,29 @@ import time
 import dns.resolver
 import subprocess
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
 stop_spinner = False
 
-
 class WireWolfShell(Cmd):
     """Interactive shell for WireWolf."""
     prompt = "🐺 WireWolf> "
     intro = (
-        "=============================================\n"
-        " __        __  _                                   \n"
-        " \\ \\      / / | |                                \n"
-        "  \\ \\ /\\ / /__| | ___ ___  _ __ ___   ___       \n"
-        "   \\ V  V / _ \\ |/ __/ _ \\| '_ ` _ \\ / _ \\     \n"
-        "    \\_/\\_/  __/ | (_| (_) | | | | | |  __/ |     \n"
-        "         \\___|_|\\___\\___/|_| |_| |_|\\___|      \n"
-        "                                                   \n"
-        "        WireWolf - Network Scanner Tool            \n"
-        "          Version: 1.1.0                           \n"
-        "          Author: Larry Orton                      \n"
-        "=============================================\n\n"
-        "Type `help` for available commands."
+        "============================================="
+        "\n __        __  _                                   "
+        "\n \\ \      / / | |                                "
+        "\n  \\ \ /\ / /__| | ___ ___  _ __ ___   ___       "
+        "\n   \\ V  V / _ \\ |/ __/ _ \\| '_ ` _ \\ / _ \\     "
+        "\n    \\_/\\_/  __/ | (_| (_) | | | | | |  __/ |     "
+        "\n         \\___|_|\\___\\___/|_| |_| |_|\\___|      "
+        "\n                                                   "
+        "\n        WireWolf - Network Scanner Tool            "
+        "\n          Version: 1.1.1                           "
+        "\n          Author: Larry Orton                      "
+        "\n============================================="
+        "\n\nType `help` for available commands."
         "\n"
     )
 
@@ -127,6 +126,18 @@ Examples:
      scan -t example.com --subdomains --dns
 =============================================
         """)
+
+    def do_update(self, args):
+        """Update the WireWolf tool from the command line."""
+        try:
+            print("Updating WireWolf...\n")
+            result = subprocess.run(["pipx", "reinstall", "WireWolf"], capture_output=True, text=True)
+            if result.returncode == 0:
+                print("[+] WireWolf updated successfully!")
+            else:
+                print(f"[!] Update failed: {result.stderr}")
+        except Exception as e:
+            print(f"[!] Update process encountered an error: {e}")
 
 
 def spinner(message):
@@ -347,8 +358,21 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
 
 def main():
     """Entry point for the tool."""
+    # Check dependencies on startup
+    check_dependencies()
     shell = WireWolfShell()
     shell.cmdloop()
+
+
+def check_dependencies():
+    """Check and install missing dependencies using pipx."""
+    dependencies = ["nmap", "requests", "ipwhois", "dns.resolver"]
+    for package in dependencies:
+        try:
+            __import__(package)
+        except ImportError:
+            print(f"[!] {package} is missing. Installing...")
+            subprocess.run(["pipx", "install", package])
 
 
 if __name__ == "__main__":
