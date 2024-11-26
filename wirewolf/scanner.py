@@ -21,7 +21,7 @@ stop_spinner = False
 
 # Dependency check function
 def check_dependencies():
-    """Ensure all required dependencies are installed."""
+    """Ensure all required dependencies are installed via pipx."""
     required_packages = {
         "nmap": "nmap",
         "dns": "dnspython",
@@ -35,15 +35,22 @@ def check_dependencies():
         try:
             __import__(module_name)
         except ImportError:
-            print(f"[!] Missing module: {module_name} (installing {package_name})...")
+            print(f"[!] Missing module: {module_name} (installing {package_name} via pipx)...")
             try:
+                # Ensure pipx is installed
                 subprocess.run(
-                    [sys.executable, "-m", "pip", "install", package_name],
+                    [sys.executable, "-m", "pip", "install", "--user", "pipx"],
                     check=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
                 )
-                print(f"[+] Successfully installed: {package_name}")
+                subprocess.run(
+                    ["pipx", "install", package_name],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+                print(f"[+] Successfully installed: {package_name} via pipx")
             except subprocess.CalledProcessError as e:
                 print(f"[!] Failed to install {package_name}. Error: {e}")
                 sys.exit(f"[!] WireWolf cannot run without {package_name}. Please install it manually.")
