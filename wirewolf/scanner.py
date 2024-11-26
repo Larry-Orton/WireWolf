@@ -86,8 +86,8 @@ class WireWolfShell(Cmd):
                 password
             )
 
-    except SystemExit:
-        print("[!] Invalid usage. Type `help` for usage details.")
+        except SystemExit:
+            print("[!] Invalid usage. Type `help` for usage details.")
 
     def do_exit(self, args):
         """Exit the WireWolf shell."""
