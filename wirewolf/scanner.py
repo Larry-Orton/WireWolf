@@ -12,7 +12,7 @@ import time
 import dns.resolver
 import subprocess
 
-VERSION = "1.1.5"
+VERSION = "1.1.6"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
@@ -31,7 +31,7 @@ class WireWolfShell(Cmd):
         "\n         \\___|_|\\___\\___/|_| |_| |_|\\___|      "
         "\n                                                   "
         "\n        WireWolf - Network Scanner Tool            "
-        "\n          Version: 1.1.5                           "
+        "\n          Version: 1.1.6                           "
         "\n          Author: Larry Orton                      "
         "\n============================================="
         "\n\nType `help` for available commands."
@@ -53,7 +53,7 @@ class WireWolfShell(Cmd):
         try:
             args = parser.parse_args(args.split())
             target = args.target
-            ports = args.ports if not args.deep else '1-65535'
+            ports = '1-65535' if args.deep else args.ports
             output_file = args.output
             fast = args.fast
             verbose = args.verbose
@@ -229,9 +229,9 @@ def scan_ports(ip, ports, verbose):
         if verbose:
             print(f"[Verbose] Scanning ports: {ports} for {ip}...")
         nm.scan(ip, ports, '-T4')
-        for port in sorted(map(int, ports.split(','))):
-            state = nm[ip]['tcp'][port]['state'] if port in nm[ip]['tcp'] else "unknown"
-            service = nm[ip]['tcp'][port].get('name', 'unknown') if port in nm[ip]['tcp'] else "unknown"
+        for port in nm[ip]['tcp']:
+            state = nm[ip]['tcp'][port]['state']
+            service = nm[ip]['tcp'][port].get('name', 'unknown')
             results.append((port, state, service))
     except KeyError:
         print(f"[!] Error: Unable to scan ports for {ip}. Ensure the IP is reachable.")
