@@ -35,7 +35,7 @@ The easiest way to install and manage **WireWolf** is via **pipx**:
 ```sh
 sudo apt install pipx
 pipx ensurepath
-
+```
 ## Install WireWolf:
 
 ```bash
