@@ -12,13 +12,36 @@ import time
 import dns.resolver
 import subprocess
 import ssl
+from OpenSSL import crypto
 
-VERSION = "1.3.1"
+VERSION = "1.4.0"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
 stop_spinner = False
 
+# Dependency Check
+def check_dependencies():
+    print("[+] Checking dependencies...")
+    dependencies = ['nmap', 'requests', 'ipwhois', 'dnspython', 'pyOpenSSL']
+    missing = []
+    for dependency in dependencies:
+        try:
+            __import__(dependency)
+        except ImportError:
+            missing.append(dependency)
+    
+    if missing:
+        print(f"[!] Missing dependencies: {', '.join(missing)}")
+        install = input("Do you want to install them now? (y/n): ").lower().strip()
+        if install == 'y':
+            subprocess.run([sys.executable, "-m", "pip", "install", *missing])
+            print("[+] Dependencies installed successfully.")
+        else:
+            print("[!] Tool may not function correctly without the required packages.")
+            sys.exit(1)
+    else:
+        print("[+] All dependencies are installed.")
 
 class WireWolfShell(Cmd):
     """Interactive shell for WireWolf."""
@@ -33,7 +56,7 @@ class WireWolfShell(Cmd):
         "         \\___|_|\\___\\___/|_| |_| |_|\\___|      \n"
         "                                                   \n"
         "        WireWolf - Network Scanner Tool            \n"
-        "          Version: 1.3.1                           \n"
+        "          Version: 1.4.0                           \n"
         "          Author: Larry Orton                      \n"
         "=============================================\n\n"
         "Type `menu` for a guided experience or `help` for command usage."
@@ -73,51 +96,16 @@ class WireWolfShell(Cmd):
             print("[!] Invalid selection. Returning to menu.")
 
     def do_scan(self, args):
-        """
-        Scan a target. Usage: scan -t <target> [options]
-        """
+        """Scan a target. Usage: scan -t <target> [options]"""
         parser = argparse.ArgumentParser(
             prog="scan",
-            description="""WireWolf - Network Scanner Tool
-
-USAGE:
-    scan -t <target> [OPTIONS]
-
-OPTIONS:
-    -t, --target          Target IP or domain (Required)
-    -p, --ports           Ports to scan (Default: 80,443)
-    -o, --output          Save scan results to a file
-    -f, --fast            Fast mode: Scan IP, GeoIP, and common ports
-    -v, --verbose         Show detailed progress during scan
-    --subdomains          Enumerate subdomains for the target domain
-    --traceroute          Perform a traceroute to the target
-    --dns                 Fetch DNS records (A, MX)
-    --vulnerabilities     Scan for vulnerabilities
-    --ssl-check           Check SSL/TLS configuration
-    -h, --help            Show this help menu
-
-EXAMPLES:
-    Basic Scan:
-        scan -t example.com
-
-    Custom Ports:
-        scan -t example.com -p 22,8080
-
-    Save Results:
-        scan -t example.com -o results.txt
-
-    Advanced Scan:
-        scan -t example.com --subdomains --vulnerabilities
-
-    Fast Mode:
-        scan -t example.com -f
-""",
+            description="""WireWolf - Perform detailed network scans with various options.""",
             formatter_class=argparse.RawTextHelpFormatter,
             add_help=False,
         )
 
         # Define arguments
-        parser.add_argument('-t', '--target', help='Target IP or domain to scan (required).')
+        parser.add_argument('-t', '--target', required=True, help='Target IP or domain to scan (required).')
         parser.add_argument('-p', '--ports', default='80,443', help='Specify ports to scan. (Default: 80,443)')
         parser.add_argument('-o', '--output', help='Save the scan results to a specified file.')
         parser.add_argument('-f', '--fast', action='store_true', help='Enable fast mode: Scan basic details only.')
@@ -130,15 +118,10 @@ EXAMPLES:
         parser.add_argument('-h', '--help', action='store_true', help='Show this help menu.')
 
         try:
-            # Parse arguments
             parsed_args = parser.parse_args(args.split())
-
-            # If help is requested, print the custom help and exit
-            if parsed_args.help or not parsed_args.target:
-                print(parser.description)
+            if parsed_args.help:
+                print(parser.format_help())
                 return
-
-            # Execute the scan with spinner
             run_with_spinner(
                 perform_scan,
                 parsed_args.target,
@@ -150,7 +133,7 @@ EXAMPLES:
                 parsed_args.traceroute,
                 parsed_args.dns,
                 parsed_args.vulnerabilities,
-                parsed_args.ssl_check
+                parsed_args.ssl_check,
             )
         except SystemExit:
             print("[!] Invalid command. Use `scan -h` for help.")
@@ -159,10 +142,10 @@ EXAMPLES:
         """Update WireWolf to the latest version."""
         print("[+] Checking for updates...")
         try:
-            subprocess.run(["pipx", "reinstall", "WireWolf"], check=True)
+            subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "wirewolf"], check=True)
             print("[+] WireWolf updated successfully! 🚀")
         except subprocess.CalledProcessError as e:
-            print("[!] Update failed. Please ensure pipx is installed and configured correctly.")
+            print("[!] Update failed. Please ensure pip is installed and configured correctly.")
             print(f"[!] Error: {e}")
 
     def do_exit(self, args):
@@ -170,38 +153,9 @@ EXAMPLES:
         print("Goodbye!")
         return True
 
-
-# Spinner for Scan Progress
-def spinner(message):
-    """Display an animated spinner with a message."""
-    global stop_spinner
-    spinner_chars = itertools.cycle(["|", "/", "-", "\\"])
-    sys.stdout.write(f"\r{message} ")
-    while not stop_spinner:
-        sys.stdout.write(next(spinner_chars))
-        sys.stdout.flush()
-        time.sleep(0.1)
-        sys.stdout.write("\b")
-
-
-def run_with_spinner(task_function, *args):
-    """Run a task with a loading spinner."""
-    global stop_spinner
-    stop_spinner = False
-    spinner_thread = threading.Thread(target=spinner, args=("Running scan...",))
-    spinner_thread.daemon = True
-    spinner_thread.start()
-    try:
-        task_function(*args)
-    finally:
-        stop_spinner = True
-        spinner_thread.join()
-        sys.stdout.write("\r" + " " * 30 + "\r")  # Clear the spinner line
-        sys.stdout.flush()
-
-
-# Perform Scan Logic
+# Perform Scan
 def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, vulnerabilities, ssl_check):
+    """Perform the full or fast scan based on user input."""
     try:
         ip = socket.gethostbyname(target)
     except socket.gaierror:
@@ -213,7 +167,7 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
     if fast:
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, '80,443', verbose)
-        generate_report(target, ip, geo_data, port_data, [], [], {}, [], output_file)
+        generate_report(target, ip, geo_data, port_data, [], [], {}, [], [], output_file)
     else:
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, ports, verbose)
@@ -221,61 +175,32 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
         traceroute_data = trace_route(ip) if traceroute else []
         dns_data = lookup_dns(target) if dns_lookup else {}
         vulnerabilities_data = scan_vulnerabilities(port_data) if vulnerabilities else []
-        ssl_check_data = check_ssl(ip, target) if ssl_check else []
-
+        ssl_check_data = check_ssl(ip) if ssl_check else []
         generate_report(
             target, ip, geo_data, port_data, subdomains_data,
             traceroute_data, dns_data, vulnerabilities_data, ssl_check_data, output_file
         )
 
-
-# SSL/TLS Check Function
-def check_ssl(ip, target):
-    """Check SSL/TLS configurations for the given IP or domain."""
-    import ssl
-    import OpenSSL
-    from socket import create_connection
-
-    report = ["SSL/TLS Configuration:"]
+# SSL Check
+def check_ssl(ip):
+    """Check SSL/TLS configuration."""
+    ssl_data = {}
     try:
-        # Attempt to connect using the domain first, fallback to IP if needed
-        hostname = target if target else ip
-        context = ssl.create_default_context()
-        with create_connection((ip, 443)) as sock:
-            with context.wrap_socket(sock, server_hostname=hostname) as ssock:
-                cert = ssock.getpeercert(binary_form=True)
-                x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_ASN1, cert)
-
-                # Subject
-                subject = dict(x509.get_subject().get_components())
-                report.append(f"    Subject: {subject}")
-                report.append("        - Meaning: Specifies the entity (domain/organization) the certificate was issued for.")
-
-                # Issuer
-                issuer = dict(x509.get_issuer().get_components())
-                report.append(f"    Issuer: {issuer}")
-                report.append("        - Meaning: The trusted Certificate Authority (CA) that issued the certificate.")
-
-                # Validity
-                report.append(f"    Validity Period:")
-                report.append(f"        - Start: {x509.get_notBefore().decode()}")
-                report.append(f"        - Expiration: {x509.get_notAfter().decode()}")
-                report.append("        - Meaning: Specifies the start and expiration dates of the certificate.")
-
-                # Subject Alternative Names (SAN)
-                ext_count = x509.get_extension_count()
-                for i in range(ext_count):
-                    ext = x509.get_extension(i)
-                    if "subjectAltName" in str(ext.get_short_name()):
-                        report.append(f"    Subject Alternative Name (SAN): {ext}")
-                        report.append("        - Meaning: Lists additional domains covered by the certificate.")
-
-                # Add additional SSL/TLS details as needed (e.g., OCSP, CRL)
-    except ssl.SSLError as e:
-        report.append(f"    SSL/TLS Error: {e}")
-        report.append("        - Meaning: Problem with the certificate or its configuration.")
-
-    return report
+        ctx = ssl.create_default_context()
+        with ctx.wrap_socket(socket.socket(), server_hostname=ip) as s:
+            s.connect((ip, 443))
+            cert = s.getpeercert()
+            ssl_data = {
+                'subject': cert.get('subject', []),
+                'issuer': cert.get('issuer', []),
+                'version': cert.get('version', 'unknown'),
+                'notBefore': cert.get('notBefore', 'unknown'),
+                'notAfter': cert.get('notAfter', 'unknown'),
+                'subjectAltName': cert.get('subjectAltName', []),
+            }
+    except Exception as e:
+        ssl_data['error'] = str(e)
+    return ssl_data
 
 
 # Additional Scanning Functions
