@@ -11,37 +11,43 @@ import threading
 import time
 import dns.resolver
 import subprocess
-import ssl
-from OpenSSL import crypto
 
-VERSION = "1.4.0"
+# Ensure pyOpenSSL is installed
+try:
+    from OpenSSL import crypto
+except ImportError:
+    print("[!] Missing `pyOpenSSL`. Attempting to install it...")
+    subprocess.run([sys.executable, "-m", "pip", "install", "pyOpenSSL"])
+    from OpenSSL import crypto
+
+VERSION = "1.5.0"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
 stop_spinner = False
 
-# Dependency Check
+
 def check_dependencies():
+    """Ensure all required dependencies are installed."""
     print("[+] Checking dependencies...")
-    dependencies = ['nmap', 'requests', 'ipwhois', 'dnspython', 'pyOpenSSL']
+    dependencies = ["nmap", "requests", "ipwhois", "dns", "pyOpenSSL"]
     missing = []
     for dependency in dependencies:
         try:
             __import__(dependency)
         except ImportError:
             missing.append(dependency)
-    
+
     if missing:
         print(f"[!] Missing dependencies: {', '.join(missing)}")
-        install = input("Do you want to install them now? (y/n): ").lower().strip()
+        install = input("Would you like to install them now? (y/n): ").lower().strip()
         if install == 'y':
             subprocess.run([sys.executable, "-m", "pip", "install", *missing])
             print("[+] Dependencies installed successfully.")
         else:
-            print("[!] Tool may not function correctly without the required packages.")
+            print("[!] Exiting. Please install the required dependencies.")
             sys.exit(1)
-    else:
-        print("[+] All dependencies are installed.")
+
 
 class WireWolfShell(Cmd):
     """Interactive shell for WireWolf."""
@@ -56,7 +62,7 @@ class WireWolfShell(Cmd):
         "         \\___|_|\\___\\___/|_| |_| |_|\\___|      \n"
         "                                                   \n"
         "        WireWolf - Network Scanner Tool            \n"
-        "          Version: 1.4.0                           \n"
+        "          Version: 1.5.0                           \n"
         "          Author: Larry Orton                      \n"
         "=============================================\n\n"
         "Type `menu` for a guided experience or `help` for command usage."
@@ -153,7 +159,35 @@ class WireWolfShell(Cmd):
         print("Goodbye!")
         return True
 
-# Perform Scan
+
+def spinner(message):
+    """Display an animated spinner with a message."""
+    global stop_spinner
+    spinner_chars = itertools.cycle(["|", "/", "-", "\\"])
+    sys.stdout.write(f"\r{message} ")
+    while not stop_spinner:
+        sys.stdout.write(next(spinner_chars))
+        sys.stdout.flush()
+        time.sleep(0.1)
+        sys.stdout.write("\b")
+
+
+def run_with_spinner(task_function, *args):
+    """Run a task with a loading spinner."""
+    global stop_spinner
+    stop_spinner = False
+    spinner_thread = threading.Thread(target=spinner, args=("Running scan...",))
+    spinner_thread.daemon = True
+    spinner_thread.start()
+    try:
+        task_function(*args)
+    finally:
+        stop_spinner = True
+        spinner_thread.join()
+        sys.stdout.write("\r" + " " * 30 + "\r")  # Clear the spinner line
+        sys.stdout.flush()
+
+
 def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, vulnerabilities, ssl_check):
     """Perform the full or fast scan based on user input."""
     try:
@@ -181,29 +215,9 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
             traceroute_data, dns_data, vulnerabilities_data, ssl_check_data, output_file
         )
 
-# SSL Check
-def check_ssl(ip):
-    """Check SSL/TLS configuration."""
-    ssl_data = {}
-    try:
-        ctx = ssl.create_default_context()
-        with ctx.wrap_socket(socket.socket(), server_hostname=ip) as s:
-            s.connect((ip, 443))
-            cert = s.getpeercert()
-            ssl_data = {
-                'subject': cert.get('subject', []),
-                'issuer': cert.get('issuer', []),
-                'version': cert.get('version', 'unknown'),
-                'notBefore': cert.get('notBefore', 'unknown'),
-                'notAfter': cert.get('notAfter', 'unknown'),
-                'subjectAltName': cert.get('subjectAltName', []),
-            }
-    except Exception as e:
-        ssl_data['error'] = str(e)
-    return ssl_data
 
-
-# Additional Scanning Functions
+# Function definitions for GeoIP, Ports, Vulnerabilities, SSL Check, etc.
+# GeoIP Lookup
 def get_geoip(ip):
     """Retrieve geographic information for the given IP."""
     try:
@@ -213,12 +227,14 @@ def get_geoip(ip):
         print(f"[!] GeoIP lookup failed: {e}")
         return {}
 
-
+# Port Scanning
 def scan_ports(ip, ports, verbose):
     """Scan specified ports using Nmap."""
     results = []
     try:
         nm = nmap.PortScanner()
+        if verbose:
+            print(f"[Verbose] Scanning ports: {ports} for {ip}...")
         nm.scan(ip, ports, '-T4')
         for port in map(int, ports.split(',')):
             state = nm[ip]['tcp'][port]['state'] if port in nm[ip]['tcp'] else "unknown"
@@ -228,23 +244,12 @@ def scan_ports(ip, ports, verbose):
         print(f"[!] Port scanning failed: {e}")
     return results
 
-
-def lookup_dns(domain):
-    """Retrieve DNS records."""
-    records = {}
-    try:
-        records["A"] = [rdata.to_text() for rdata in dns.resolver.resolve(domain, "A")]
-        records["MX"] = [rdata.to_text() for rdata in dns.resolver.resolve(domain, "MX")]
-    except Exception as e:
-        print(f"[!] DNS lookup failed: {e}")
-    return records
-
-
+# Subdomain Enumeration
 def enumerate_subdomains(domain):
     """Enumerate subdomains."""
     subdomains = []
     try:
-        subdomain_list = [f"www.{domain}", f"mail.{domain}"]
+        subdomain_list = [f"www.{domain}", f"mail.{domain}", f"api.{domain}"]
         for sub in subdomain_list:
             try:
                 socket.gethostbyname(sub)
@@ -255,7 +260,18 @@ def enumerate_subdomains(domain):
         print(f"[!] Subdomain enumeration failed: {e}")
     return subdomains
 
+# DNS Lookup
+def lookup_dns(domain):
+    """Retrieve DNS records."""
+    records = {}
+    try:
+        records["A"] = [rdata.to_text() for rdata in dns.resolver.resolve(domain, "A")]
+        records["MX"] = [rdata.to_text() for rdata in dns.resolver.resolve(domain, "MX")]
+    except Exception as e:
+        print(f"[!] DNS lookup failed: {e}")
+    return records
 
+# Vulnerability Scanning
 def scan_vulnerabilities(ports):
     """Scan for vulnerabilities."""
     vulnerabilities = []
@@ -275,9 +291,37 @@ def scan_vulnerabilities(ports):
         print(f"[!] Vulnerability scan failed: {e}")
     return vulnerabilities
 
+# SSL/TLS Configuration Check
+def check_ssl(ip):
+    """Check SSL/TLS configurations."""
+    ssl_details = {}
+    try:
+        import ssl
+        import socket
 
-def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_data, vulnerabilities, ssl_check_data, output_file):
-    """Generate the scan report."""
+        ctx = ssl.create_default_context()
+        with socket.create_connection((ip, 443)) as sock:
+            with ctx.wrap_socket(sock, server_hostname=ip) as ssock:
+                cert = ssock.getpeercert()
+                ssl_details = {
+                    "subject": cert.get("subject"),
+                    "issuer": cert.get("issuer"),
+                    "version": cert.get("version"),
+                    "serialNumber": cert.get("serialNumber"),
+                    "notBefore": cert.get("notBefore"),
+                    "notAfter": cert.get("notAfter"),
+                    "subjectAltName": cert.get("subjectAltName"),
+                    "OCSP": cert.get("OCSP"),
+                    "caIssuers": cert.get("caIssuers"),
+                    "crlDistributionPoints": cert.get("crlDistributionPoints"),
+                }
+    except Exception as e:
+        ssl_details = {"SSL/TLS Error": str(e)}
+    return ssl_details
+
+# Generate Report
+def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_data, vulnerabilities, ssl_check, output_file):
+    """Generate a comprehensive scan report."""
     report = [
         f"Target: {target} ({ip})",
         f"Scan Date: {datetime.now()}",
@@ -287,41 +331,33 @@ def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_dat
         f"    City: {geo_data.get('city', 'unknown')}",
         "\n[+] Open Ports:",
         *[f"    {port}/tcp: {state} ({service})" for port, state, service in ports],
-        "\n[+] DNS Records:",
-        *[f"    {key}: {value}" for key, value in dns_data.items()],
         "\n[+] Subdomains:",
         *subdomains,
+        "\n[+] Traceroute:",
+        *traceroute,
+        "\n[+] DNS Records:",
+        *[f"    {key}: {value}" for key, value in dns_data.items()],
         "\n[+] Vulnerabilities:",
         *[f"    {vuln['port']}/tcp: {vuln['cve']} - {vuln['description']}" for vuln in vulnerabilities],
-        "\n[+] SSL/TLS Configuration:"
+        "\n[+] SSL/TLS Configuration:",
+        *[f"    {key}: {value}" for key, value in ssl_check.items()]
     ]
 
-    if ssl_check_data:
-        if "certificate" in ssl_check_data:
-            cert = ssl_check_data["certificate"]
-            for key, value in cert.items():
-                report.append(f"    {key}: {value}")
-        elif "error" in ssl_check_data:
-            report.append(f"    SSL/TLS Error: {ssl_check_data['error']}")
-    else:
-        report.append("    No SSL/TLS data available.")
-
-    # Print the report
+    # Print report
     print("\n".join(report))
 
-    # Save to file if specified
+    # Save to file if output_file is specified
     if output_file:
         try:
-            with open(output_file, 'w') as f:
+            with open(output_file, "w") as f:
                 f.write("\n".join(report))
             print(f"[+] Report saved to {output_file}")
         except Exception as e:
             print(f"[!] Failed to save report: {e}")
 
 
-
 def main():
-    """Main entry point for WireWolf."""
+    check_dependencies()
     WireWolfShell().cmdloop()
 
 
