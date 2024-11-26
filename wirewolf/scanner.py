@@ -23,6 +23,10 @@ stop_spinner = False
 import subprocess
 import sys
 
+import subprocess
+import sys
+import os
+
 def check_dependencies():
     """Ensure all required dependencies are installed via pipx."""
     required_packages = {
@@ -34,7 +38,7 @@ def check_dependencies():
 
     print("[+] Checking for required dependencies...")
 
-    # Ensure pipx is installed first
+    # Ensure pipx is installed and configured
     try:
         subprocess.run(
             [sys.executable, "-m", "pip", "install", "--user", "pipx"],
@@ -48,12 +52,12 @@ def check_dependencies():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        print("[+] pipx is installed and ready.")
+        print("[+] pipx is installed and configured.")
     except subprocess.CalledProcessError as e:
         print(f"[!] Failed to install pipx. Error: {e}")
         sys.exit("[!] Please install pipx manually to continue.")
 
-    # Check and install each dependency using pipx
+    # Check and install dependencies
     for module_name, package_name in required_packages.items():
         try:
             __import__(module_name)
@@ -67,12 +71,21 @@ def check_dependencies():
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
                 )
-                print(f"[+] Successfully installed: {package_name} via pipx.")
+                print(f"[+] Successfully installed: {package_name}.")
             except subprocess.CalledProcessError as e:
                 print(f"[!] Failed to install {package_name}. Error: {e}")
                 sys.exit(f"[!] WireWolf cannot run without {package_name}. Please install it manually.")
 
+    # Test importing OpenSSL to confirm it's installed
+    try:
+        from OpenSSL import crypto
+        print("[+] OpenSSL is correctly installed.")
+    except ImportError:
+        print("[!] OpenSSL installation failed.")
+        sys.exit("[!] Please verify the installation of OpenSSL and try again.")
+
     print("[+] All dependencies are installed and verified.")
+
 
 
 
