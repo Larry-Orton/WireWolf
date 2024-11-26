@@ -20,13 +20,6 @@ AUTHOR = "Larry Orton"
 stop_spinner = False
 
 # Dependency check function
-import subprocess
-import sys
-
-import subprocess
-import sys
-import os
-
 def check_dependencies():
     """Ensure all required dependencies are installed via pipx."""
     required_packages = {
@@ -75,6 +68,16 @@ def check_dependencies():
             except subprocess.CalledProcessError as e:
                 print(f"[!] Failed to install {package_name}. Error: {e}")
                 sys.exit(f"[!] WireWolf cannot run without {package_name}. Please install it manually.")
+
+    # Test importing OpenSSL to confirm it's installed
+    try:
+        from OpenSSL import crypto
+        print("[+] OpenSSL is correctly installed.")
+    except ImportError:
+        print("[!] OpenSSL installation failed.")
+        sys.exit("[!] Please verify the installation of OpenSSL and try again.")
+
+    print("[+] All dependencies are installed and verified.")
 
     # Test importing OpenSSL to confirm it's installed
     try:
