@@ -12,7 +12,7 @@ import time
 import dns.resolver
 import subprocess
 
-VERSION = "1.1.2"
+VERSION = "1.1.4"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
@@ -31,7 +31,7 @@ class WireWolfShell(Cmd):
         "\n         \\___|_|\\___\\___/|_| |_| |_|\\___|      "
         "\n                                                   "
         "\n        WireWolf - Network Scanner Tool            "
-        "\n          Version: 1.1.2                           "
+        "\n          Version: 1.1.4                           "
         "\n          Author: Larry Orton                      "
         "\n============================================="
         "\n\nType `help` for available commands."
@@ -131,7 +131,7 @@ Examples:
         """Update the WireWolf tool from the command line."""
         try:
             print("Updating WireWolf...\n")
-            result = subprocess.run(["pipx", "reinstall", "WireWolf"], capture_output=True, text=True)
+            result = subprocess.run(["pipx", "reinstall", "wirewolf"], capture_output=True, text=True)
             if result.returncode == 0:
                 print("[+] WireWolf updated successfully!")
             else:
@@ -302,6 +302,7 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
 
     report.append("[+] Resolved IP Address:")
     report.append(f"    - {ip}\n")
+    report.append("    [Info] The IP address for the target has been resolved, which is essential for subsequent steps in network reconnaissance.")
 
     if geo_data:
         report.append("[+] GeoIP Information:")
@@ -310,24 +311,30 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
         report.append(f"    - City: {geo_data.get('city', 'unknown')}")
         report.append(f"    - Latitude: {geo_data.get('latitude', 'unknown')}")
         report.append(f"    - Longitude: {geo_data.get('longitude', 'unknown')}\n")
+        report.append("    [Info] Knowing the geographic location can be useful for determining the origin of potential threats or understanding network latency.")
 
     if ports:
         report.append("[+] Open Ports:")
         for port, state, service in ports:
             report.append(f"    - {port}/tcp: {state} ({service})")
+            # Adding educational information
+            report.append(f"        [Info] Port {port} is {state}. The service running is '{service}', which is typically used for {service_description(service)}.")
+            report.append(f"        [Next Step] As a pentester, you might want to research vulnerabilities associated with '{service}' or use tools like Metasploit to identify potential exploits for open ports.")
         report.append("")
 
     if subdomains:
         report.append("[+] Subdomains Found:")
         for subdomain in subdomains:
             report.append(f"    - {subdomain}")
-        report.append("")
+        report.append("    [Info] Enumerating subdomains can help in finding hidden services, administrative panels, or other entry points to the target.")
+        report.append("    [Next Step] Consider scanning each subdomain for vulnerabilities, and exploring potential attack surfaces that they expose.")
 
     if traceroute:
         report.append("[+] Traceroute Results:")
         for hop in traceroute:
             report.append(f"    {hop}")
-        report.append("")
+        report.append("    [Info] Traceroute helps you understand the path packets take to reach the target, which can reveal intermediate network devices and potential points of filtering or throttling.")
+        report.append("    [Next Step] Use this information to identify bottlenecks or devices that could be used for deeper packet inspection.")
 
     if dns_data:
         report.append("[+] DNS Records:")
@@ -335,7 +342,8 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
             report.append(f"    {record_type}:")
             for record in records:
                 report.append(f"      - {record}")
-        report.append("")
+        report.append("    [Info] DNS records provide information about how a domain resolves, including mail servers and IP addresses, which is useful in understanding the target's network structure.")
+        report.append("    [Next Step] As a pentester, you may use this information to target specific IP addresses or MX records for email-based attacks.")
 
     if whois_data:
         report.append("[+] WHOIS Information:")
@@ -343,7 +351,8 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
         report.append(f"    - Organization: {whois_data.get('asn_description', 'unknown')}")
         report.append(f"    - CIDR: {whois_data.get('asn_cidr', 'unknown')}")
         report.append(f"    - Country: {whois_data.get('asn_country_code', 'unknown')}")
-        report.append("")
+        report.append("    [Info] WHOIS information can provide ownership details, which are useful for understanding who is responsible for a specific IP or domain.")
+        report.append("    [Next Step] You can use this information to perform targeted social engineering or identify points of contact for responsible disclosure.")
 
     report.append("--------------------------------")
     report.append("Scan Complete.")
@@ -361,6 +370,20 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
             print(f"[+] Report saved to {output_file}")
         except Exception as e:
             print(f"[!] Failed to save report: {e}")
+
+
+def service_description(service):
+    """Provide a description for the given service."""
+    descriptions = {
+        'http': "HTTP is used for transferring web pages.",
+        'https': "HTTPS is a secure version of HTTP, used for secure communication.",
+        'ssh': "SSH is used for secure remote login and command execution.",
+        'ftp': "FTP is used for transferring files.",
+        'smtp': "SMTP is used for sending emails.",
+        'dns': "DNS is used for domain name resolution.",
+        'mysql': "MySQL is a popular database service."
+    }
+    return descriptions.get(service, "a general purpose that could vary depending on configuration.")
 
 
 def main():
