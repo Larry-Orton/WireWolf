@@ -325,7 +325,7 @@ def run_bloodhound(target):
     try:
         print(f"[+] Running BloodHound enumeration for target: {target}")
         command = [
-            "docker", "run", "--rm",
+            "sudo", "docker", "run", "--rm",
             "-v", f"{target}_bloodhound:/data",
             "bloodhoundanalytics/bloodhound", "sharphound", "-c", "All"
         ]
