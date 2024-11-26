@@ -29,17 +29,31 @@ def check_dependencies():
         ("OpenSSL", "pyOpenSSL")
     ]
     missing_packages = []
+    
+    print("[+] Checking for required dependencies...")
     for module_name, package_name in required_packages:
         try:
             __import__(module_name)
         except ImportError:
+            print(f"[!] Missing module: {module_name} (requires {package_name})")
             missing_packages.append(package_name)
-    
+
     if missing_packages:
-        print("[!] Missing dependencies detected. Installing...")
+        print("[!] Installing missing dependencies...")
         for package in missing_packages:
-            subprocess.run([sys.executable, "-m", "pip", "install", package])
-        print("[+] All dependencies installed successfully!")
+            try:
+                subprocess.run(
+                    [sys.executable, "-m", "pip", "install", package],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+                print(f"[+] Successfully installed: {package}")
+            except subprocess.CalledProcessError as e:
+                print(f"[!] Failed to install {package}. Error: {e}")
+        print("[+] All dependencies have been installed successfully.")
+    else:
+        print("[+] All dependencies are already installed.")
 
 
 # Spinner for scan progress
