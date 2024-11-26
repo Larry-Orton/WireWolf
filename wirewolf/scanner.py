@@ -131,7 +131,7 @@ Examples:
         """Update the WireWolf tool from the command line."""
         try:
             print("Updating WireWolf...\n")
-            result = subprocess.run(["pipx", "reinstall", "wirewolf"], capture_output=True, text=True)
+            result = subprocess.run(["pipx", "reinstall", "WireWolf"], capture_output=True, text=True)
             if result.returncode == 0:
                 print("[+] WireWolf updated successfully!")
             else:
