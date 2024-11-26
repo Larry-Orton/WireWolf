@@ -85,7 +85,7 @@ class WireWolfShell(Cmd):
         """Exit the WireWolf shell."""
         print("Goodbye!")
         return True
-        def do_help(self, args):
+    def do_help(self, args):
         """Display help information for available commands."""
         print("""
 =============================================
