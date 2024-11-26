@@ -72,15 +72,26 @@ wirewolf
 Type `help` for available commands.
 🐺 WireWolf>
 ```
-Command-Line Options
-| Option            | Argument         | Description                                                                |
-|-------------------|------------------|----------------------------------------------------------------------------|
-| `-t`, `--target`  | `<IP/Domain>`    | Specify the target domain or IP to scan. **(Required)**                   |
-| `-o`, `--output`  | `<File>`         | Save the scan results to the specified file.                              |
-| `-p`, `--ports`   | `<Ports>`        | Ports to scan (e.g., "80,443" or "1-1000"). Default: `80,443`.            |
-| `-f`, `--fast`    | None             | Enable fast mode: scan only IP, GeoIP, and two common ports (80, 443).    |
-| `-v`, `--verbose` | None             | Enable detailed output during scanning.                                   |
-| `-h`, `--help`    | None             | Display help information and usage details.                               |
+### Command-Line Options
+
+| Option            | Argument       | Description                                                                         |
+|-------------------|----------------|-------------------------------------------------------------------------------------|
+| `-t, --target`    | `<IP/Domain>`  | Specify the target domain or IP to scan. (Required)                                 |
+| `-o, --output`    | `<File>`       | Save the scan results to the specified file.                                        |
+| `-p, --ports`     | `<Ports>`      | Ports to scan (e.g., "80,443" or "1-1000"). Default: 80,443.                         |
+| `-f, --fast`      | None           | Enable fast mode: scan only IP, GeoIP, and two common ports (80, 443).               |
+| `-d, --deep`      | None           | Enable deep mode: scan a broader range of ports (1-65535).                           |
+| `-v, --verbose`   | None           | Enable detailed output during scanning.                                             |
+| `--subdomains`    | None           | Enumerate subdomains for the target domain.                                         |
+| `--traceroute`    | None           | Perform a traceroute to the target IP.                                              |
+| `--dns`           | None           | Retrieve DNS records (A, MX) for the target domain.                                 |
+| `--ldapdump`      | None           | Run ldapdomaindump for Active Directory enumeration.                                |
+| `-u, --username`  | `<Username>`   | Username for AD enumeration (used with `--ldapdump`).                               |
+| `-P, --password`  | `<Password>`   | Password for AD enumeration (used with `--ldapdump`).                               |
+| `--userfile`      | `<File>`       | File containing potential usernames for brute-force AD enumeration (optional).      |
+| `--passfile`      | `<File>`       | File containing potential passwords for brute-force AD enumeration (optional).      |
+| `-h, --help`      | None           | Display help information and usage details.                                         |
+
 
 
 ## Examples
