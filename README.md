@@ -5,41 +5,37 @@
 # WireWolf - Network Scanner Tool 🐺
 
 ## Overview
+**WireWolf** is a fast, modern, and feature-rich network scanner designed for cybersecurity professionals and enthusiasts. With **WireWolf**, you can perform detailed scans on domains or IPs to gather essential information such as:
 
-**WireWolf** is a fast, modern, and feature-rich network scanner designed for cybersecurity professionals. With **WireWolf**, you can perform detailed scans on domains or IPs to gather essential information such as:
+- **Open Ports**
+- **GeoIP Location**
+- **Operating System Information**
+- **Website Metadata**
+- **WHOIS Information**
+- **LDAP Domain Dump Enumeration**
 
-- Open ports
-- GeoIP location
-- Operating system
-- Website metadata
-- WHOIS information
-
-WireWolf offers both a **full scan mode** and a **fast mode** for streamlined results.
-
----
+**WireWolf** offers both a **full scan mode** and a **fast mode** for streamlined results, along with an interactive shell for a seamless user experience.
 
 ## Features
-
 - **Target Scanning**: Perform detailed scans of IPs and domains.
 - **GeoIP Lookup**: Get geographic information (e.g., country, region, city).
 - **Port Scanning**: Detect open ports and their services.
 - **Website Metadata**: Gather HTTP server details and SSL info.
 - **WHOIS Lookup**: Retrieve registration and ownership details.
+- **LDAP Domain Enumeration**: Enumerate Active Directory information using `ldapdomaindump`.
 - **Fast Mode**: Quickly scan basic details like GeoIP and common ports (80, 443).
-- **Interactive Shell**: Use the intuitive `WireWolf>` shell for seamless scanning.
-
----
+- **Interactive Shell**: Use the intuitive `🐺 WireWolf>` shell for easy and interactive scanning.
+- **Update Feature**: Easily update WireWolf from the command line.
 
 ## Installation
 
-### **Using pipx**
+### Using pipx
+The easiest way to install and manage **WireWolf** is via **pipx**:
 
-The easiest way to install and manage **WireWolf** is via `pipx`:
-
-```bash
+```sh
 sudo apt install pipx
 pipx ensurepath
-```
+
 ## Install WireWolf:
 
 ```bash
