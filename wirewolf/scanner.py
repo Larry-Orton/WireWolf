@@ -22,23 +22,25 @@ stop_spinner = False
 # Dependency check function
 def check_dependencies():
     """Ensure all required dependencies are installed."""
-    print("[+] Checking for required dependencies...")
-    dependencies = ["nmap", "requests", "ipwhois", "dns", "subprocess", "OpenSSL"]
-    missing = []
-    for dep in dependencies:
+    required_packages = [
+        ("nmap", "nmap"),
+        ("dns", "dnspython"),
+        ("requests", "requests"),
+        ("OpenSSL", "pyOpenSSL")
+    ]
+    missing_packages = []
+    for module_name, package_name in required_packages:
         try:
-            __import__(dep)
+            __import__(module_name)
         except ImportError:
-            missing.append(dep)
+            missing_packages.append(package_name)
+    
+    if missing_packages:
+        print("[!] Missing dependencies detected. Installing...")
+        for package in missing_packages:
+            subprocess.run([sys.executable, "-m", "pip", "install", package])
+        print("[+] All dependencies installed successfully!")
 
-    if missing:
-        print(f"[!] Missing dependencies: {', '.join(missing)}")
-        print("[+] Attempting to install missing dependencies...")
-        for dep in missing:
-            subprocess.run([sys.executable, "-m", "pip", "install", dep], check=True)
-        print("[+] Dependencies installed successfully.")
-    else:
-        print("[+] All dependencies are installed.")
 
 # Spinner for scan progress
 def spinner(message):
