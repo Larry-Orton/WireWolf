@@ -22,38 +22,33 @@ stop_spinner = False
 # Dependency check function
 def check_dependencies():
     """Ensure all required dependencies are installed."""
-    required_packages = [
-        ("nmap", "nmap"),
-        ("dns", "dnspython"),
-        ("requests", "requests"),
-        ("OpenSSL", "pyOpenSSL")
-    ]
-    missing_packages = []
-    
+    required_packages = {
+        "nmap": "nmap",
+        "dns": "dnspython",
+        "requests": "requests",
+        "OpenSSL": "pyOpenSSL"
+    }
+
     print("[+] Checking for required dependencies...")
-    for module_name, package_name in required_packages:
+
+    for module_name, package_name in required_packages.items():
         try:
             __import__(module_name)
         except ImportError:
-            print(f"[!] Missing module: {module_name} (requires {package_name})")
-            missing_packages.append(package_name)
-
-    if missing_packages:
-        print("[!] Installing missing dependencies...")
-        for package in missing_packages:
+            print(f"[!] Missing module: {module_name} (installing {package_name})...")
             try:
                 subprocess.run(
-                    [sys.executable, "-m", "pip", "install", package],
+                    [sys.executable, "-m", "pip", "install", package_name],
                     check=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
                 )
-                print(f"[+] Successfully installed: {package}")
+                print(f"[+] Successfully installed: {package_name}")
             except subprocess.CalledProcessError as e:
-                print(f"[!] Failed to install {package}. Error: {e}")
-        print("[+] All dependencies have been installed successfully.")
-    else:
-        print("[+] All dependencies are already installed.")
+                print(f"[!] Failed to install {package_name}. Error: {e}")
+                sys.exit(f"[!] WireWolf cannot run without {package_name}. Please install it manually.")
+    
+    print("[+] All dependencies are installed.")
 
 
 # Spinner for scan progress
