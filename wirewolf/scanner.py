@@ -12,6 +12,7 @@ import time
 import dns.resolver
 import subprocess
 import shutil
+import os
 
 VERSION = "1.1.9"
 AUTHOR = "Larry Orton"
@@ -40,46 +41,53 @@ class WireWolfShell(Cmd):
     )
 
     def do_scan(self, args):
-        """Scan a target. Usage: scan -t <target> [-p <ports>] [-o <output>] [-f] [-v]"""
-        parser = argparse.ArgumentParser(prog="scan", add_help=False)
-        parser.add_argument('-t', '--target', required=True, help='Target IP or domain to scan')
-        parser.add_argument('-p', '--ports', default='80,443', help='Ports to scan (default: 80,443)')
-        parser.add_argument('-o', '--output', help='Save the scan results to a specified file')
-        parser.add_argument('-f', '--fast', action='store_true', help='Enable fast mode: scan basic details only')
-        parser.add_argument('-d', '--deep', action='store_true', help='Enable deep mode: scan a broader range of ports')
-        parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
-        parser.add_argument('--subdomains', action='store_true', help='Enumerate subdomains for the target domain')
-        parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target')
-        parser.add_argument('--dns', action='store_true', help='Retrieve DNS records for the target domain')
-        parser.add_argument('--bloodhound', action='store_true', help='Run BloodHound AD enumeration')
-        try:
-            args = parser.parse_args(args.split())
-            target = args.target
-            ports = '1-65535' if args.deep else args.ports
-            output_file = args.output
-            fast = args.fast
-            verbose = args.verbose
-            subdomains = args.subdomains
-            traceroute = args.traceroute
-            dns_lookup = args.dns
-            bloodhound = args.bloodhound
+    """Scan a target. Usage: scan -t <target> [-p <ports>] [-o <output>] [-f] [-v]"""
+    parser = argparse.ArgumentParser(prog="scan", add_help=False)
+    parser.add_argument('-t', '--target', required=True, help='Target IP or domain to scan')
+    parser.add_argument('-p', '--ports', default='80,443', help='Ports to scan (default: 80,443)')
+    parser.add_argument('-o', '--output', help='Save the scan results to a specified file')
+    parser.add_argument('-f', '--fast', action='store_true', help='Enable fast mode: scan basic details only')
+    parser.add_argument('-d', '--deep', action='store_true', help='Enable deep mode: scan a broader range of ports')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
+    parser.add_argument('--subdomains', action='store_true', help='Enumerate subdomains for the target domain')
+    parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target')
+    parser.add_argument('--dns', action='store_true', help='Retrieve DNS records for the target domain')
+    parser.add_argument('--ldapdump', action='store_true', help='Run ldapdomaindump for AD enumeration')
+    parser.add_argument('-u', '--username', help='Username for AD enumeration (used with --ldapdump)')
+    parser.add_argument('-P', '--password', help='Password for AD enumeration (used with --ldapdump)')
+    
+    try:
+        args = parser.parse_args(args.split())
+        target = args.target
+        ports = '1-65535' if args.deep else args.ports
+        output_file = args.output
+        fast = args.fast
+        verbose = args.verbose
+        subdomains = args.subdomains
+        traceroute = args.traceroute
+        dns_lookup = args.dns
+        ldapdump = args.ldapdump
+        username = args.username
+        password = args.password
 
-            # Run the scan with a loading animation
-            run_with_spinner(
-                perform_scan,
-                target,
-                ports,
-                output_file,
-                verbose,
-                fast,
-                subdomains,
-                traceroute,
-                dns_lookup,
-                bloodhound
-            )
+        # Run the scan with a loading animation
+        run_with_spinner(
+            perform_scan,
+            target,
+            ports,
+            output_file,
+            verbose,
+            fast,
+            subdomains,
+            traceroute,
+            dns_lookup,
+            ldapdump,
+            username,
+            password
+        )
 
-        except SystemExit:
-            print("[!] Invalid usage. Type `help` for usage details.")
+    except SystemExit:
+        print("[!] Invalid usage. Type `help` for usage details.")
 
     def do_exit(self, args):
         """Exit the WireWolf shell."""
@@ -158,7 +166,7 @@ Examples:
 
 def check_dependencies():
     """Check and install missing dependencies."""
-    dependencies = ["docker", "nmap"]
+    dependencies = ["docker", "nmap", "ldapdomaindump"]
     for dep in dependencies:
         if shutil.which(dep) is None:
             print(f"[!] Missing dependency: {dep}. Attempting to install...")
@@ -169,6 +177,9 @@ def check_dependencies():
                 elif dep == "nmap":
                     subprocess.run(["sudo", "apt-get", "install", "-y", "nmap"], check=True)
                     print("[+] Nmap installed successfully.")
+                elif dep == "ldapdomaindump":
+                    subprocess.run(["pip", "install", "ldapdomaindump"], check=True)
+                    print("[+] ldapdomaindump installed successfully.")
             except subprocess.CalledProcessError:
                 print(f"[!] Failed to install {dep}. Please install it manually.")
 def spinner(message):
@@ -199,7 +210,7 @@ def run_with_spinner(task_function, *args):
         sys.stdout.flush()
 
 
-def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, bloodhound):
+def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, ldapdump, username, password):
     """Perform the full or fast scan based on user input."""
     try:
         ip = socket.gethostbyname(target)
@@ -220,9 +231,8 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
         subdomains_data = enumerate_subdomains(target) if subdomains else []
         traceroute_data = trace_route(ip) if traceroute else []
         dns_data = lookup_dns(target) if dns_lookup else {}
-        bloodhound_data = run_bloodhound(target) if bloodhound else None
-        generate_report(target, ip, geo_data, port_data, whois_data, subdomains_data, traceroute_data, dns_data, bloodhound_data, output_file)
-
+        ldapdump_data = run_ldapdomaindump(target, username, password) if ldapdump else None
+        generate_report(target, ip, geo_data, port_data, whois_data, subdomains_data, traceroute_data, dns_data, ldapdump_data, output_file)
 
 def get_geoip(ip):
     """Retrieve geographic information for the given IP using ip-api.com."""
@@ -320,24 +330,34 @@ def lookup_dns(domain):
     return dns_data
 
 
-def run_bloodhound(target):
-    """Run BloodHound AD enumeration and collect data using Docker."""
+def run_ldapdomaindump(target, username, password):
+    """Run ldapdomaindump to collect Active Directory information."""
     try:
-        print(f"[+] Running BloodHound enumeration for target: {target}")
+        print(f"[+] Running ldapdomaindump for target: {target}")
+        
+        # Ensure output directory exists
+        output_dir = f"{target}_ldapdomaindump"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        # Construct the ldapdomaindump command
         command = [
-            "sudo", "docker", "run", "--rm",
-            "-v", f"{target}_bloodhound:/data",
-            "bloodhoundanalytics/bloodhound", "sharphound", "-c", "All"
+            "ldapdomaindump",
+            "-u", username,
+            "-p", password,
+            "-o", output_dir,
+            target
         ]
+        
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode == 0:
-            print(f"[+] BloodHound data collection completed successfully for target: {target}")
-            return result.stdout
+            print(f"[+] ldapdomaindump completed successfully for target: {target}")
+            return f"Results saved in directory: {output_dir}"
         else:
-            print(f"[!] BloodHound data collection failed: {result.stderr}")
+            print(f"[!] ldapdomaindump failed: {result.stderr}")
             return None
     except Exception as e:
-        print(f"[!] BloodHound encountered an error: {e}")
+        print(f"[!] ldapdomaindump encountered an error: {e}")
         return None
 
 
