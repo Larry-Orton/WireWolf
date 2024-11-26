@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/Larry-Orton/WireWolf/refs/heads/main/WireWolf%20Logo.webp" alt="WireWolf Logo" width="300">
 </div>
 
-# WireWolf - Network Scanner Tool 🐺
+# WireWolf version 1.1.9 - Network Scanner Tool 🐺
 
 ## Overview
 **WireWolf** is a fast, modern, and feature-rich network scanner designed for cybersecurity professionals and enthusiasts. With **WireWolf**, you can perform detailed scans on domains or IPs to gather essential information such as:
