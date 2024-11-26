@@ -20,6 +20,9 @@ AUTHOR = "Larry Orton"
 stop_spinner = False
 
 # Dependency check function
+import subprocess
+import sys
+
 def check_dependencies():
     """Ensure all required dependencies are installed via pipx."""
     required_packages = {
@@ -31,31 +34,46 @@ def check_dependencies():
 
     print("[+] Checking for required dependencies...")
 
+    # Ensure pipx is installed first
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--user", "pipx"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        subprocess.run(
+            ["pipx", "ensurepath"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        print("[+] pipx is installed and ready.")
+    except subprocess.CalledProcessError as e:
+        print(f"[!] Failed to install pipx. Error: {e}")
+        sys.exit("[!] Please install pipx manually to continue.")
+
+    # Check and install each dependency using pipx
     for module_name, package_name in required_packages.items():
         try:
             __import__(module_name)
+            print(f"[+] Dependency '{module_name}' is already installed.")
         except ImportError:
-            print(f"[!] Missing module: {module_name} (installing {package_name} via pipx)...")
+            print(f"[!] Missing dependency: {module_name} (installing {package_name} via pipx)...")
             try:
-                # Ensure pipx is installed
-                subprocess.run(
-                    [sys.executable, "-m", "pip", "install", "--user", "pipx"],
-                    check=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
-                )
                 subprocess.run(
                     ["pipx", "install", package_name],
                     check=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
                 )
-                print(f"[+] Successfully installed: {package_name} via pipx")
+                print(f"[+] Successfully installed: {package_name} via pipx.")
             except subprocess.CalledProcessError as e:
                 print(f"[!] Failed to install {package_name}. Error: {e}")
                 sys.exit(f"[!] WireWolf cannot run without {package_name}. Please install it manually.")
-    
-    print("[+] All dependencies are installed.")
+
+    print("[+] All dependencies are installed and verified.")
+
 
 
 # Spinner for scan progress
