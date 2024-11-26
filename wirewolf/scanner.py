@@ -12,7 +12,7 @@ import time
 import dns.resolver
 import subprocess
 
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
@@ -31,7 +31,7 @@ class WireWolfShell(Cmd):
         "\n         \\___|_|\\___\\___/|_| |_| |_|\\___|      "
         "\n                                                   "
         "\n        WireWolf - Network Scanner Tool            "
-        "\n          Version: 1.1.1                           "
+        "\n          Version: 1.1.2                           "
         "\n          Author: Larry Orton                      "
         "\n============================================="
         "\n\nType `help` for available commands."
@@ -131,7 +131,7 @@ Examples:
         """Update the WireWolf tool from the command line."""
         try:
             print("Updating WireWolf...\n")
-            result = subprocess.run(["pipx", "reinstall", "WireWolf"], capture_output=True, text=True)
+            result = subprocess.run(["pipx", "reinstall", "wirewolf"], capture_output=True, text=True)
             if result.returncode == 0:
                 print("[+] WireWolf updated successfully!")
             else:
@@ -170,7 +170,11 @@ def run_with_spinner(task_function, *args):
 
 def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup):
     """Perform the full or fast scan based on user input."""
-    ip = socket.gethostbyname(target)
+    try:
+        ip = socket.gethostbyname(target)
+    except socket.gaierror:
+        print(f"[!] Error: Unable to resolve target '{target}'. Please check the target name.")
+        return
 
     if fast:
         # Fast mode: Only IP resolution, GeoIP, and two common ports
@@ -265,10 +269,13 @@ def trace_route(ip):
     """Perform a traceroute to the target IP."""
     traceroute_output = []
     try:
-        result = subprocess.run(["traceroute", ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        traceroute_output = result.stdout.decode().splitlines()
-    except Exception:
-        pass
+        result = subprocess.run(["traceroute", ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode == 0:
+            traceroute_output = result.stdout.splitlines()
+        else:
+            print(f"[!] Traceroute failed: {result.stderr}")
+    except Exception as e:
+        print(f"[!] Traceroute process encountered an error: {e}")
     return traceroute_output
 
 
