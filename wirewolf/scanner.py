@@ -325,9 +325,9 @@ def run_bloodhound(target):
     try:
         print(f"[+] Running BloodHound enumeration for target: {target}")
         command = [
-            "sudo", "docker", "run", "--rm",
+            "docker", "run", "--rm",
             "-v", f"{target}_bloodhound:/data",
-            "bloodhoundad/bloodhound", "sharphound", "-c", "All"
+            "bloodhoundanalytics/bloodhound", "sharphound", "-c", "All"
         ]
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode == 0:
@@ -339,6 +339,7 @@ def run_bloodhound(target):
     except Exception as e:
         print(f"[!] BloodHound encountered an error: {e}")
         return None
+
 
 
 def generate_report(target, ip, geo_data, ports, whois_data, subdomains, traceroute, dns_data, bloodhound_data, output_file):
