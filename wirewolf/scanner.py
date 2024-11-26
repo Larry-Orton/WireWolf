@@ -2,7 +2,6 @@ import argparse
 import nmap
 import socket
 import requests
-from OpenSSL import crypto
 from ipwhois import IPWhois
 from datetime import datetime
 from cmd import Cmd
@@ -12,32 +11,81 @@ import threading
 import time
 import dns.resolver
 import subprocess
+from OpenSSL import crypto
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 AUTHOR = "Larry Orton"
 
-# Global flag to stop the spinner
+# Global flag for spinner
 stop_spinner = False
 
+# Dependency check function
+def check_dependencies():
+    """Ensure all required dependencies are installed."""
+    print("[+] Checking for required dependencies...")
+    dependencies = ["nmap", "requests", "ipwhois", "dns", "subprocess", "OpenSSL"]
+    missing = []
+    for dep in dependencies:
+        try:
+            __import__(dep)
+        except ImportError:
+            missing.append(dep)
 
+    if missing:
+        print(f"[!] Missing dependencies: {', '.join(missing)}")
+        print("[+] Attempting to install missing dependencies...")
+        for dep in missing:
+            subprocess.run([sys.executable, "-m", "pip", "install", dep], check=True)
+        print("[+] Dependencies installed successfully.")
+    else:
+        print("[+] All dependencies are installed.")
+
+# Spinner for scan progress
+def spinner(message):
+    """Display an animated spinner with a message."""
+    global stop_spinner
+    spinner_chars = itertools.cycle(["|", "/", "-", "\\"])
+    sys.stdout.write(f"\r{message} ")
+    while not stop_spinner:
+        sys.stdout.write(next(spinner_chars))
+        sys.stdout.flush()
+        time.sleep(0.1)
+        sys.stdout.write("\b")
+
+# Function to run tasks with spinner
+def run_with_spinner(task_function, *args):
+    """Run a task with a loading spinner."""
+    global stop_spinner
+    stop_spinner = False
+    spinner_thread = threading.Thread(target=spinner, args=("Running scan...",))
+    spinner_thread.daemon = True
+    spinner_thread.start()
+    try:
+        task_function(*args)
+    finally:
+        stop_spinner = True
+        spinner_thread.join()
+        sys.stdout.write("\r" + " " * 30 + "\r")  # Clear spinner
+        sys.stdout.flush()
+
+# Main shell for WireWolf
 class WireWolfShell(Cmd):
     """Interactive shell for WireWolf."""
     prompt = "🐺 WireWolf> "
     intro = (
-        "=============================================\n"
-        " __        __  _                                   \n"
-        " \\ \\      / / | |                                \n"
-        "  \\ \\ /\\ / /__| | ___ ___  _ __ ___   ___       \n"
-        "   \\ V  V / _ \\ |/ __/ _ \\| '_ ` _ \\ / _ \\     \n"
-        "    \\_/\\_/  __/ | (_| (_) | | | | | |  __/ |     \n"
-        "         \\___|_|\\___\\___/|_| |_| |_|\\___|      \n"
-        "                                                   \n"
-        "        WireWolf - Network Scanner Tool            \n"
-        f"          Version: {VERSION}                      \n"
-        f"          Author: {AUTHOR}                        \n"
-        "=============================================\n\n"
-        "Type `menu` for a guided experience or `help` for command usage."
-        "\n"
+        f"=============================================\n"
+        f" __        __  _                              \n"
+        f" \\ \\      / / | |                             \n"
+        f"  \\ \\ /\\ / /__| | ___ ___  _ __ ___   ___     \n"
+        f"   \\ V  V / _ \\ |/ __/ _ \\| '_ ` _ \\ / _ \\   \n"
+        f"    \\_/\\_/  __/ | (_| (_) | | | | | |  __/ | \n"
+        f"         \\___|_|\\___\\___/|_| |_| |_|\\___|  \n"
+        f"                                             \n"
+        f"        WireWolf - Network Scanner Tool       \n"
+        f"          Version: {VERSION}                 \n"
+        f"          Author: {AUTHOR}                   \n"
+        f"=============================================\n\n"
+        f"Type `menu` for a guided experience or `help` for command usage.\n"
     )
 
     def do_menu(self, args):
@@ -74,52 +122,12 @@ class WireWolfShell(Cmd):
 
     def do_scan(self, args):
         """Scan a target. Usage: scan -t <target> [options]"""
-        custom_help = """
-=============================================
-🔍 WireWolf - Scan Command Help
-=============================================
-
-USAGE:
-    scan -t <target> [OPTIONS]
-
-OPTIONS:
-    -t, --target          Target IP or domain (Required)
-    -p, --ports           Ports to scan (Default: 80,443)
-    -o, --output          Save scan results to a file
-    -f, --fast            Fast mode: Scan IP, GeoIP, and common ports
-    -v, --verbose         Show detailed progress during scan
-    --subdomains          Enumerate subdomains for the target domain
-    --traceroute          Perform a traceroute to the target
-    --dns                 Fetch DNS records (A, MX)
-    --vulnerabilities     Scan for vulnerabilities
-    --ssl-check           Check SSL/TLS configuration
-    --passwords           Test password strength
-    --sensitive-files     Search for sensitive files
-    -h, --help            Show this help menu
-
-EXAMPLES:
-    1️⃣  Basic Scan:
-        scan -t example.com
-
-    2️⃣  Custom Ports:
-        scan -t example.com -p 22,8080
-
-    3️⃣  Save Results:
-        scan -t example.com -o results.txt
-
-    4️⃣  Advanced Scan:
-        scan -t example.com --subdomains --vulnerabilities
-
-    5️⃣  Fast Mode:
-        scan -t example.com -f
-
-TIPS:
-    🔹 Combine options for a comprehensive scan
-=============================================
-"""
         parser = argparse.ArgumentParser(
             prog="scan",
-            description=custom_help,
+            description=(
+                "WireWolf Network Scanner - Perform detailed network scans with options for "
+                "GeoIP lookup, subdomains, DNS records, vulnerabilities, and more."
+            ),
             formatter_class=argparse.RawTextHelpFormatter,
             add_help=False,
         )
@@ -145,7 +153,7 @@ TIPS:
 
             # If help is requested, print the custom help and exit
             if parsed_args.help:
-                print(custom_help)
+                print(parser.description)
                 return
 
             # Execute the scan with spinner
@@ -161,57 +169,14 @@ TIPS:
                 parsed_args.dns,
                 parsed_args.vulnerabilities,
                 parsed_args.ssl_check,
+                parsed_args.passwords,
+                parsed_args.sensitive_files,
             )
         except SystemExit:
-            print(custom_help)
-
-    def do_update(self, args):
-        """Update WireWolf to the latest version."""
-        print("[+] Checking for updates...")
-        try:
-            subprocess.run(["pipx", "reinstall", "WireWolf"], check=True)
-            print("[+] WireWolf updated successfully! 🚀")
-        except subprocess.CalledProcessError as e:
-            print("[!] Update failed. Please ensure pipx is installed and configured correctly.")
-            print(f"[!] Error: {e}")
-
-    def do_exit(self, args):
-        """Exit the WireWolf shell."""
-        print("Goodbye!")
-        return True
-
-
-# Spinner for Scan Progress
-def spinner(message):
-    """Display an animated spinner with a message."""
-    global stop_spinner
-    spinner_chars = itertools.cycle(["|", "/", "-", "\\"])
-    sys.stdout.write(f"\r{message} ")
-    while not stop_spinner:
-        sys.stdout.write(next(spinner_chars))
-        sys.stdout.flush()
-        time.sleep(0.1)
-        sys.stdout.write("\b")
-
-
-def run_with_spinner(task_function, *args):
-    """Run a task with a loading spinner."""
-    global stop_spinner
-    stop_spinner = False
-    spinner_thread = threading.Thread(target=spinner, args=("Running scan...",))
-    spinner_thread.daemon = True
-    spinner_thread.start()
-    try:
-        task_function(*args)
-    finally:
-        stop_spinner = True
-        spinner_thread.join()
-        sys.stdout.write("\r" + " " * 30 + "\r")  # Clear the spinner line
-        sys.stdout.flush()
-
-
-# Full Scan Logic
-def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, vulnerabilities, ssl_check):
+            # Show custom help menu in case of invalid usage
+            print("[!] Invalid command. Use `scan -h` for help.")
+    # Perform Scan Logic
+def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, vulnerabilities, ssl_check, passwords, sensitive_files):
     """Perform the full or fast scan based on user input."""
     try:
         ip = socket.gethostbyname(target)
@@ -221,25 +186,79 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
 
     print(f"[+] Resolved IP: {ip}")
 
+    geo_data = {}
+    port_data = []
+    subdomains_data = []
+    traceroute_data = []
+    dns_data = {}
+    vulnerabilities_data = []
+    ssl_check_data = []
+    sensitive_files_data = []
+
     if fast:
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, '80,443', verbose)
-        generate_report(target, ip, geo_data, port_data, [], [], {}, [], output_file)
     else:
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, ports, verbose)
-        subdomains_data = enumerate_subdomains(target) if subdomains else []
-        traceroute_data = trace_route(ip) if traceroute else []
-        dns_data = lookup_dns(target) if dns_lookup else {}
-        vulnerabilities_data = scan_vulnerabilities(port_data) if vulnerabilities else []
-        ssl_check_data = check_ssl(ip) if ssl_check else []
-        generate_report(
-            target, ip, geo_data, port_data, subdomains_data,
-            traceroute_data, dns_data, vulnerabilities_data, ssl_check_data, output_file
-        )
+        if subdomains:
+            subdomains_data = enumerate_subdomains(target)
+        if traceroute:
+            traceroute_data = trace_route(ip)
+        if dns_lookup:
+            dns_data = lookup_dns(target)
+        if vulnerabilities:
+            vulnerabilities_data = scan_vulnerabilities(port_data)
+        if ssl_check:
+            ssl_check_data = check_ssl(target)
+        if sensitive_files:
+            sensitive_files_data = scan_sensitive_files(target)
+
+    generate_report(
+        target, ip, geo_data, port_data, subdomains_data,
+        traceroute_data, dns_data, vulnerabilities_data,
+        ssl_check_data, sensitive_files_data, output_file
+    )
 
 
-# Function Definitions for GeoIP, Ports, Vulnerabilities, SSL Check, etc.
+# SSL Check
+def check_ssl(target):
+    """Check SSL/TLS configuration for the given domain or IP."""
+    try:
+        context = socket.create_default_context()
+        with socket.create_connection((target, 443)) as sock:
+            with context.wrap_socket(sock, server_hostname=target) as ssock:
+                cert = ssock.getpeercert()
+                return {
+                    "subject": dict(x[0] for x in cert["subject"]),
+                    "issuer": dict(x[0] for x in cert["issuer"]),
+                    "version": cert.get("version", "unknown"),
+                    "serialNumber": cert.get("serialNumber", "unknown"),
+                    "notBefore": cert.get("notBefore", "unknown"),
+                    "notAfter": cert.get("notAfter", "unknown"),
+                    "subjectAltName": cert.get("subjectAltName", []),
+                }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# Sensitive Files Scan
+def scan_sensitive_files(target):
+    """Check for sensitive files on the target server."""
+    sensitive_files = ["robots.txt", ".env", ".git/config", "config.php"]
+    found_files = []
+    try:
+        for file in sensitive_files:
+            url = f"http://{target}/{file}"
+            response = requests.head(url)
+            if response.status_code == 200:
+                found_files.append(file)
+    except Exception as e:
+        print(f"[!] Sensitive file check failed: {e}")
+    return found_files
+
+
+# GeoIP Lookup
 def get_geoip(ip):
     """Retrieve geographic information for the given IP."""
     try:
@@ -250,6 +269,7 @@ def get_geoip(ip):
         return {}
 
 
+# Port Scanning
 def scan_ports(ip, ports, verbose):
     """Scan specified ports using Nmap."""
     results = []
@@ -265,6 +285,7 @@ def scan_ports(ip, ports, verbose):
     return results
 
 
+# DNS Lookup
 def lookup_dns(domain):
     """Retrieve DNS records."""
     records = {}
@@ -276,11 +297,12 @@ def lookup_dns(domain):
     return records
 
 
+# Subdomain Enumeration
 def enumerate_subdomains(domain):
     """Enumerate subdomains."""
     subdomains = []
     try:
-        subdomain_list = [f"www.{domain}", f"mail.{domain}"]
+        subdomain_list = [f"www.{domain}", f"mail.{domain}", f"api.{domain}"]
         for sub in subdomain_list:
             try:
                 socket.gethostbyname(sub)
@@ -292,6 +314,7 @@ def enumerate_subdomains(domain):
     return subdomains
 
 
+# Vulnerability Scanning
 def scan_vulnerabilities(ports):
     """Scan for vulnerabilities."""
     vulnerabilities = []
@@ -312,20 +335,8 @@ def scan_vulnerabilities(ports):
     return vulnerabilities
 
 
-def check_ssl(ip):
-    """Check SSL/TLS configuration."""
-    try:
-        context = ssl.create_default_context()
-        with socket.create_connection((ip, 443)) as sock:
-            with context.wrap_socket(sock, server_hostname=ip) as ssock:
-                cert = ssock.getpeercert()
-                return cert
-    except Exception as e:
-        print(f"[!] SSL check failed: {e}")
-        return None
-
-
-def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_data, vulnerabilities, ssl_check, output_file):
+# Generate Report
+def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_data, vulnerabilities, ssl_check, sensitive_files, output_file):
     """Generate the scan report."""
     report = [
         f"Target: {target} ({ip})",
@@ -343,13 +354,25 @@ def generate_report(target, ip, geo_data, ports, subdomains, traceroute, dns_dat
         "\n[+] Vulnerabilities:",
         *[f"    {vuln['port']}/tcp: {vuln['cve']} - {vuln['description']}" for vuln in vulnerabilities],
         "\n[+] SSL/TLS Configuration:",
-        f"    SSL Data: {ssl_check}"
+        f"    {ssl_check if ssl_check else 'No SSL/TLS issues detected.'}",
+        "\n[+] Sensitive Files Found:",
+        *sensitive_files,
     ]
+
     print("\n".join(report))
+    if output_file:
+        try:
+            with open(output_file, 'w') as file:
+                file.write("\n".join(report))
+            print(f"[+] Report saved to {output_file}")
+        except Exception as e:
+            print(f"[!] Failed to save report: {e}")
 
 
+# Main entry point
 def main():
     """Main entry point for WireWolf."""
+    check_dependencies()  # Ensure all dependencies are installed
     WireWolfShell().cmdloop()
 
 
