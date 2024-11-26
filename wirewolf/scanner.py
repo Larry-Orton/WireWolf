@@ -26,8 +26,8 @@ class WireWolfShell(Cmd):
     intro = (
         "============================================="
         "\n __        __  _                                   "
-        "\n \\ \      / / | |                                "
-        "\n  \\ \ /\ / /__| | ___ ___  _ __ ___   ___       "
+        "\n \\ \\      / / | |                                "
+        "\n  \\ \\ /\\ / /__| | ___ ___  _ __ ___   ___       "
         "\n   \\ V  V / _ \\ |/ __/ _ \\| '_ ` _ \\ / _ \\     "
         "\n    \\_/\\_/  __/ | (_| (_) | | | | | |  __/ |     "
         "\n         \\___|_|\\___\\___/|_| |_| |_|\\___|      "
@@ -39,7 +39,6 @@ class WireWolfShell(Cmd):
         "\n\nType `help` for available commands."
         "\n"
     )
-
     def do_scan(self, args):
         """Scan a target. Usage: scan -t <target> [-p <ports>] [-o <output>] [-f] [-v]"""
         parser = argparse.ArgumentParser(prog="scan", add_help=False)
@@ -69,7 +68,7 @@ class WireWolfShell(Cmd):
             ldapdump = args.ldapdump
             username = args.username
             password = args.password
-    
+
             # Run the scan with a loading animation
             run_with_spinner(
                 perform_scan,
@@ -93,6 +92,7 @@ class WireWolfShell(Cmd):
         """Exit the WireWolf shell."""
         print("Goodbye!")
         return True
+
     def do_help(self, args):
         """Display help information for available commands."""
         print("""
@@ -111,7 +111,9 @@ Options:
       --subdomains                 Enumerate subdomains for the target domain.
       --traceroute                 Perform a traceroute to the target IP.
       --dns                        Retrieve DNS records (A, MX) for the target domain.
-      --bloodhound                 Run BloodHound AD enumeration for pentesting purposes.
+      --ldapdump                   Run ldapdomaindump for Active Directory enumeration.
+  -u, --username    <Username>     Username for AD enumeration (used with --ldapdump).
+  -P, --password    <Password>     Password for AD enumeration (used with --ldapdump).
   -h, --help                       Display this help menu.
 
 Commands:
@@ -142,11 +144,11 @@ Examples:
   8. DNS Lookup:
      scan -t example.com --dns
 
-  9. BloodHound Enumeration:
-     scan -t example.com --bloodhound
+  9. LDAP Domain Dump Enumeration:
+     scan -t example.com --ldapdump -u user -P pass
 
  10. Combined Features:
-     scan -t example.com --subdomains --dns --bloodhound
+     scan -t example.com --subdomains --dns --ldapdump -u user -P pass
 =============================================
         """)
 
@@ -193,7 +195,6 @@ def spinner(message):
         time.sleep(0.1)
         sys.stdout.write("\b")
 
-
 def run_with_spinner(task_function, *args):
     """Run a task with a loading spinner."""
     global stop_spinner
@@ -208,7 +209,6 @@ def run_with_spinner(task_function, *args):
         spinner_thread.join()
         sys.stdout.write("\r" + " " * 30 + "\r")  # Clear the spinner line
         sys.stdout.flush()
-
 
 def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, ldapdump, username, password):
     """Perform the full or fast scan based on user input."""
@@ -233,7 +233,6 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
         dns_data = lookup_dns(target) if dns_lookup else {}
         ldapdump_data = run_ldapdomaindump(target, username, password) if ldapdump else None
         generate_report(target, ip, geo_data, port_data, whois_data, subdomains_data, traceroute_data, dns_data, ldapdump_data, output_file)
-
 def get_geoip(ip):
     """Retrieve geographic information for the given IP using ip-api.com."""
     geo_data = {}
@@ -254,7 +253,6 @@ def get_geoip(ip):
         print(f"[!] GeoIP lookup failed: {e}")
     return geo_data
 
-
 def scan_ports(ip, ports, verbose):
     """Scan specified ports using Nmap."""
     results = []
@@ -272,6 +270,7 @@ def scan_ports(ip, ports, verbose):
     except Exception as e:
         print(f"[!] An error occurred during port scanning: {e}")
     return results
+
 def whois_lookup(ip):
     """Perform WHOIS lookup for the target IP."""
     whois_data = {}
@@ -288,7 +287,6 @@ def whois_lookup(ip):
         print(f"[!] WHOIS lookup failed: {e}")
     return whois_data
 
-
 def enumerate_subdomains(domain):
     """Enumerate subdomains for a given domain."""
     subdomains = []
@@ -304,7 +302,6 @@ def enumerate_subdomains(domain):
         pass
     return subdomains
 
-
 def trace_route(ip):
     """Perform a traceroute to the target IP."""
     traceroute_output = []
@@ -318,7 +315,6 @@ def trace_route(ip):
         print(f"[!] Traceroute process encountered an error: {e}")
     return traceroute_output
 
-
 def lookup_dns(domain):
     """Retrieve DNS records for the domain."""
     dns_data = {}
@@ -328,7 +324,6 @@ def lookup_dns(domain):
     except Exception:
         pass
     return dns_data
-
 
 def run_ldapdomaindump(target, username, password):
     """Run ldapdomaindump to collect Active Directory information."""
@@ -359,10 +354,7 @@ def run_ldapdomaindump(target, username, password):
     except Exception as e:
         print(f"[!] ldapdomaindump encountered an error: {e}")
         return None
-
-
-
-def generate_report(target, ip, geo_data, ports, whois_data, subdomains, traceroute, dns_data, bloodhound_data, output_file):
+def generate_report(target, ip, geo_data, ports, whois_data, subdomains, traceroute, dns_data, ldapdump_data, output_file):
     """Generate a comprehensive report based on the scan results."""
     report = []
     report.append("==========================")
@@ -389,16 +381,9 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
         report.append("[+] Open Ports:")
         for port, state, service in ports:
             report.append(f"    - {port}/tcp: {state} ({service})")
-            # Adding dynamic educational information based on results
             if state == 'open':
-                report.append(f"        [Info] Port {port} is open. The service running is '{service}', which is typically used for {service_description(service)}.")
+                report.append(f"        [Info] Port {port} is open. The service running is '{service}'.")
                 report.append(f"        [Next Step] As a pentester, you might want to research vulnerabilities associated with '{service}' or use tools like Metasploit to identify potential exploits for open ports.\n")
-            elif state == 'filtered':
-                report.append(f"        [Info] Port {port} is filtered, which means packets are being blocked by a firewall or other security measure.")
-                report.append(f"        [Next Step] Consider performing a firewall analysis or using tools like Nmap with aggressive options to gather more information.\n")
-            else:
-                report.append(f"        [Info] Port {port} is in an unknown state ({state}). This might require further investigation.")
-                report.append(f"        [Next Step] Consider conducting a more thorough scan or using different tools to determine why this port is not clearly open or closed.\n")
         report.append("")
 
     if subdomains:
@@ -433,11 +418,11 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
         report.append("    [Info] WHOIS information can provide ownership details, which are useful for understanding who is responsible for a specific IP or domain.")
         report.append("    [Next Step] You can use this information to perform targeted social engineering or identify points of contact for responsible disclosure.\n")
 
-    if bloodhound_data:
-        report.append("[+] BloodHound Enumeration Results:")
-        report.append(bloodhound_data)
-        report.append("    [Info] BloodHound provides information about relationships within an Active Directory environment, highlighting potential attack paths.")
-        report.append("    [Next Step] Load the BloodHound results into the BloodHound GUI to analyze the AD attack paths. Use this information to determine effective privilege escalation strategies and lateral movement opportunities.\n")
+    if ldapdump_data:
+        report.append("[+] LDAP Domain Dump Results:")
+        report.append(ldapdump_data)
+        report.append("    [Info] LDAP Domain Dump provides information about Active Directory structure and relationships.")
+        report.append("    [Next Step] Use this information to identify privileged accounts, sensitive groups, or relationships that could be exploited.\n")
 
     report.append("--------------------------------")
     report.append("Scan Complete.")
@@ -455,79 +440,12 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
             print(f"[+] Report saved to {output_file}")
         except Exception as e:
             print(f"[!] Failed to save report: {e}")
-
-
-def service_description(service):
-    """Provide a description for the given service."""
-    descriptions = {
-        'http': "HTTP is used for transferring web pages.",
-        'https': "HTTPS is a secure version of HTTP, used for secure communication.",
-        'ssh': "SSH is used for secure remote login and command execution.",
-        'ftp': "FTP is used for transferring files.",
-        'smtp': "SMTP is used for sending emails.",
-        'dns': "DNS is used for domain name resolution.",
-        'mysql': "MySQL is a popular open-source database management system."
-    }
-    return descriptions.get(service, "a commonly known service")
-
-
-def generate_fast_report(target, ip, geo_data, ports, output_file):
-    """Generate a fast report based on limited scan data."""
-    report = []
-    report.append("==========================")
-    report.append(" WireWolf Network Scanner (Fast Report)")
-    report.append("==========================\n")
-    report.append(f"Target: {target} ({ip})")
-    report.append(f"Scan Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    report.append("================================\n")
-
-    report.append("[+] Resolved IP Address:")
-    report.append(f"    - {ip}\n")
-    report.append("    [Info] The IP address for the target has been resolved, which is essential for subsequent steps in network reconnaissance.\n")
-
-    if geo_data:
-        report.append("[+] GeoIP Information:")
-        report.append(f"    - Country: {geo_data.get('country', 'unknown')}")
-        report.append(f"    - Region: {geo_data.get('region', 'unknown')}")
-        report.append(f"    - City: {geo_data.get('city', 'unknown')}")
-        report.append(f"    - Latitude: {geo_data.get('latitude', 'unknown')}")
-        report.append(f"    - Longitude: {geo_data.get('longitude', 'unknown')}\n")
-        report.append("    [Info] Knowing the geographic location can be useful for determining the origin of potential threats or understanding network latency.\n")
-
-    if ports:
-        report.append("[+] Open Ports:")
-        for port, state, service in ports:
-            report.append(f"    - {port}/tcp: {state} ({service})")
-            # Adding dynamic educational information based on results
-            if state == 'open':
-                report.append(f"        [Info] Port {port} is open. The service running is '{service}', which is typically used for {service_description(service)}.")
-                report.append(f"        [Next Step] As a pentester, you might want to research vulnerabilities associated with '{service}' or use tools like Metasploit to identify potential exploits for open ports.\n")
-        report.append("")
-
-    report.append("--------------------------------")
-    report.append("Scan Complete.")
-    report.append("")
-
-    # Print the report to the console
-    report_str = "\n".join(report)
-    print(report_str)
-
-    # Save to file if output_file is specified
-    if output_file:
-        try:
-            with open(output_file, 'w') as f:
-                f.write(report_str)
-            print(f"[+] Report saved to {output_file}")
-        except Exception as e:
-            print(f"[!] Failed to save report: {e}")
-
 
 def main():
     """Entry point for the tool."""
     check_dependencies()  # Ensure all dependencies are installed
     shell = WireWolfShell()
     shell.cmdloop()
-
 
 if __name__ == "__main__":
     main()
