@@ -164,6 +164,7 @@ Scan Date: 2024-11-20
 
 --------------------------------
 Scan Complete.
+
 ```
 For fast mode (--fast), the report will include only:
 
