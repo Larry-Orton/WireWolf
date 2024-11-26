@@ -41,50 +41,50 @@ class WireWolfShell(Cmd):
     )
 
     def do_scan(self, args):
-    """Scan a target. Usage: scan -t <target> [-p <ports>] [-o <output>] [-f] [-v]"""
-    parser = argparse.ArgumentParser(prog="scan", add_help=False)
-    parser.add_argument('-t', '--target', required=True, help='Target IP or domain to scan')
-    parser.add_argument('-p', '--ports', default='80,443', help='Ports to scan (default: 80,443)')
-    parser.add_argument('-o', '--output', help='Save the scan results to a specified file')
-    parser.add_argument('-f', '--fast', action='store_true', help='Enable fast mode: scan basic details only')
-    parser.add_argument('-d', '--deep', action='store_true', help='Enable deep mode: scan a broader range of ports')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
-    parser.add_argument('--subdomains', action='store_true', help='Enumerate subdomains for the target domain')
-    parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target')
-    parser.add_argument('--dns', action='store_true', help='Retrieve DNS records for the target domain')
-    parser.add_argument('--ldapdump', action='store_true', help='Run ldapdomaindump for AD enumeration')
-    parser.add_argument('-u', '--username', help='Username for AD enumeration (used with --ldapdump)')
-    parser.add_argument('-P', '--password', help='Password for AD enumeration (used with --ldapdump)')
+        """Scan a target. Usage: scan -t <target> [-p <ports>] [-o <output>] [-f] [-v]"""
+        parser = argparse.ArgumentParser(prog="scan", add_help=False)
+        parser.add_argument('-t', '--target', required=True, help='Target IP or domain to scan')
+        parser.add_argument('-p', '--ports', default='80,443', help='Ports to scan (default: 80,443)')
+        parser.add_argument('-o', '--output', help='Save the scan results to a specified file')
+        parser.add_argument('-f', '--fast', action='store_true', help='Enable fast mode: scan basic details only')
+        parser.add_argument('-d', '--deep', action='store_true', help='Enable deep mode: scan a broader range of ports')
+        parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
+        parser.add_argument('--subdomains', action='store_true', help='Enumerate subdomains for the target domain')
+        parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target')
+        parser.add_argument('--dns', action='store_true', help='Retrieve DNS records for the target domain')
+        parser.add_argument('--ldapdump', action='store_true', help='Run ldapdomaindump for AD enumeration')
+        parser.add_argument('-u', '--username', help='Username for AD enumeration (used with --ldapdump)')
+        parser.add_argument('-P', '--password', help='Password for AD enumeration (used with --ldapdump)')
+        
+        try:
+            args = parser.parse_args(args.split())
+            target = args.target
+            ports = '1-65535' if args.deep else args.ports
+            output_file = args.output
+            fast = args.fast
+            verbose = args.verbose
+            subdomains = args.subdomains
+            traceroute = args.traceroute
+            dns_lookup = args.dns
+            ldapdump = args.ldapdump
+            username = args.username
+            password = args.password
     
-    try:
-        args = parser.parse_args(args.split())
-        target = args.target
-        ports = '1-65535' if args.deep else args.ports
-        output_file = args.output
-        fast = args.fast
-        verbose = args.verbose
-        subdomains = args.subdomains
-        traceroute = args.traceroute
-        dns_lookup = args.dns
-        ldapdump = args.ldapdump
-        username = args.username
-        password = args.password
-
-        # Run the scan with a loading animation
-        run_with_spinner(
-            perform_scan,
-            target,
-            ports,
-            output_file,
-            verbose,
-            fast,
-            subdomains,
-            traceroute,
-            dns_lookup,
-            ldapdump,
-            username,
-            password
-        )
+            # Run the scan with a loading animation
+            run_with_spinner(
+                perform_scan,
+                target,
+                ports,
+                output_file,
+                verbose,
+                fast,
+                subdomains,
+                traceroute,
+                dns_lookup,
+                ldapdump,
+                username,
+                password
+            )
 
     except SystemExit:
         print("[!] Invalid usage. Type `help` for usage details.")
