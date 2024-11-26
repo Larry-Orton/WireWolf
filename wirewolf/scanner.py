@@ -11,8 +11,9 @@ import threading
 import time
 import dns.resolver
 import subprocess
+import shutil
 
-VERSION = "1.1.8"
+VERSION = "1.1.9"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
@@ -31,7 +32,7 @@ class WireWolfShell(Cmd):
         "\n         \\___|_|\\___\\___/|_| |_| |_|\\___|      "
         "\n                                                   "
         "\n        WireWolf - Network Scanner Tool            "
-        "\n          Version: 1.1.8                           "
+        "\n          Version: 1.1.9                           "
         "\n          Author: Larry Orton                      "
         "\n============================================="
         "\n\nType `help` for available commands."
@@ -84,8 +85,7 @@ class WireWolfShell(Cmd):
         """Exit the WireWolf shell."""
         print("Goodbye!")
         return True
-
-    def do_help(self, args):
+        def do_help(self, args):
         """Display help information for available commands."""
         print("""
 =============================================
@@ -149,12 +149,28 @@ Examples:
             result = subprocess.run(["pipx", "reinstall", "wirewolf"], capture_output=True, text=True)
             if result.returncode == 0:
                 print("[+] WireWolf updated successfully!")
+                print("[+] Restarting WireWolf...")
+                sys.exit(0)  # Exit after update to restart
             else:
                 print(f"[!] Update failed: {result.stderr}")
         except Exception as e:
             print(f"[!] Update process encountered an error: {e}")
 
-
+def check_dependencies():
+    """Check and install missing dependencies."""
+    dependencies = ["docker", "nmap"]
+    for dep in dependencies:
+        if shutil.which(dep) is None:
+            print(f"[!] Missing dependency: {dep}. Attempting to install...")
+            try:
+                if dep == "docker":
+                    subprocess.run(["sudo", "apt-get", "install", "-y", "docker.io"], check=True)
+                    print("[+] Docker installed successfully.")
+                elif dep == "nmap":
+                    subprocess.run(["sudo", "apt-get", "install", "-y", "nmap"], check=True)
+                    print("[+] Nmap installed successfully.")
+            except subprocess.CalledProcessError:
+                print(f"[!] Failed to install {dep}. Please install it manually.")
 def spinner(message):
     """Display an animated spinner with a message."""
     global stop_spinner
@@ -246,8 +262,6 @@ def scan_ports(ip, ports, verbose):
     except Exception as e:
         print(f"[!] An error occurred during port scanning: {e}")
     return results
-
-
 def whois_lookup(ip):
     """Perform WHOIS lookup for the target IP."""
     whois_data = {}
@@ -307,10 +321,14 @@ def lookup_dns(domain):
 
 
 def run_bloodhound(target):
-    """Run BloodHound AD enumeration and collect data."""
+    """Run BloodHound AD enumeration and collect data using Docker."""
     try:
         print(f"[+] Running BloodHound enumeration for target: {target}")
-        command = ["sharphound", "-c", "All"]
+        command = [
+            "docker", "run", "--rm",
+            "-v", f"{target}_bloodhound:/data",
+            "bloodhoundad/bloodhound", "sharphound", "-c", "All"
+        ]
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode == 0:
             print(f"[+] BloodHound data collection completed successfully for target: {target}")
@@ -485,6 +503,7 @@ def generate_fast_report(target, ip, geo_data, ports, output_file):
 
 def main():
     """Entry point for the tool."""
+    check_dependencies()  # Ensure all dependencies are installed
     shell = WireWolfShell()
     shell.cmdloop()
 
