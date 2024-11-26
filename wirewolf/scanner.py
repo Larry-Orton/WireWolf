@@ -12,7 +12,7 @@ import time
 import dns.resolver
 import subprocess
 
-VERSION = "1.1.4"
+VERSION = "1.1.5"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
@@ -31,7 +31,7 @@ class WireWolfShell(Cmd):
         "\n         \\___|_|\\___\\___/|_| |_| |_|\\___|      "
         "\n                                                   "
         "\n        WireWolf - Network Scanner Tool            "
-        "\n          Version: 1.1.4                           "
+        "\n          Version: 1.1.5                           "
         "\n          Author: Larry Orton                      "
         "\n============================================="
         "\n\nType `help` for available commands."
@@ -45,6 +45,7 @@ class WireWolfShell(Cmd):
         parser.add_argument('-p', '--ports', default='80,443', help='Ports to scan (default: 80,443)')
         parser.add_argument('-o', '--output', help='Save the scan results to a specified file')
         parser.add_argument('-f', '--fast', action='store_true', help='Enable fast mode: scan basic details only')
+        parser.add_argument('-d', '--deep', action='store_true', help='Enable deep mode: scan a broader range of ports')
         parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose output')
         parser.add_argument('--subdomains', action='store_true', help='Enumerate subdomains for the target domain')
         parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target')
@@ -52,7 +53,7 @@ class WireWolfShell(Cmd):
         try:
             args = parser.parse_args(args.split())
             target = args.target
-            ports = args.ports
+            ports = args.ports if not args.deep else '1-65535'
             output_file = args.output
             fast = args.fast
             verbose = args.verbose
@@ -94,11 +95,15 @@ Options:
   -o, --output      <File>         Save the scan results to the specified file.
   -p, --ports       <Ports>        Ports to scan (e.g., "80,443" or "1-1000"). Default: 80,443.
   -f, --fast                       Enable fast mode: scan only IP, GeoIP, and two common ports.
+  -d, --deep                       Enable deep mode: scan a broader range of ports (1-65535).
   -v, --verbose                    Enable detailed output during scanning.
       --subdomains                 Enumerate subdomains for the target domain.
       --traceroute                 Perform a traceroute to the target IP.
       --dns                        Retrieve DNS records (A, MX) for the target domain.
   -h, --help                       Display this help menu.
+
+Commands:
+  update                          Update the WireWolf tool from the command line.
 
 Examples:
   1. Basic Scan:
@@ -113,16 +118,19 @@ Examples:
   4. Fast Scan:
      scan -t example.com -f
   
-  5. Subdomain Enumeration:
+  5. Deep Scan:
+     scan -t example.com -d
+
+  6. Subdomain Enumeration:
      scan -t example.com --subdomains
 
-  6. Traceroute:
+  7. Traceroute:
      scan -t 8.8.8.8 --traceroute
 
-  7. DNS Lookup:
+  8. DNS Lookup:
      scan -t example.com --dns
 
-  8. Combined Features:
+  9. Combined Features:
      scan -t example.com --subdomains --dns
 =============================================
         """)
@@ -182,7 +190,7 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
         port_data = scan_ports(ip, '80,443', verbose)
         generate_fast_report(target, ip, geo_data, port_data, output_file)
     else:
-        # Full scan
+        # Full or Deep scan
         geo_data = get_geoip(ip)
         port_data = scan_ports(ip, ports, verbose)
         whois_data = whois_lookup(ip)
@@ -302,7 +310,7 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
 
     report.append("[+] Resolved IP Address:")
     report.append(f"    - {ip}\n")
-    report.append("    [Info] The IP address for the target has been resolved, which is essential for subsequent steps in network reconnaissance.")
+    report.append("    [Info] The IP address for the target has been resolved, which is essential for subsequent steps in network reconnaissance.\n")
 
     if geo_data:
         report.append("[+] GeoIP Information:")
@@ -311,7 +319,7 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
         report.append(f"    - City: {geo_data.get('city', 'unknown')}")
         report.append(f"    - Latitude: {geo_data.get('latitude', 'unknown')}")
         report.append(f"    - Longitude: {geo_data.get('longitude', 'unknown')}\n")
-        report.append("    [Info] Knowing the geographic location can be useful for determining the origin of potential threats or understanding network latency.")
+        report.append("    [Info] Knowing the geographic location can be useful for determining the origin of potential threats or understanding network latency.\n")
 
     if ports:
         report.append("[+] Open Ports:")
@@ -319,7 +327,7 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
             report.append(f"    - {port}/tcp: {state} ({service})")
             # Adding educational information
             report.append(f"        [Info] Port {port} is {state}. The service running is '{service}', which is typically used for {service_description(service)}.")
-            report.append(f"        [Next Step] As a pentester, you might want to research vulnerabilities associated with '{service}' or use tools like Metasploit to identify potential exploits for open ports.")
+            report.append(f"        [Next Step] As a pentester, you might want to research vulnerabilities associated with '{service}' or use tools like Metasploit to identify potential exploits for open ports.\n")
         report.append("")
 
     if subdomains:
@@ -327,14 +335,14 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
         for subdomain in subdomains:
             report.append(f"    - {subdomain}")
         report.append("    [Info] Enumerating subdomains can help in finding hidden services, administrative panels, or other entry points to the target.")
-        report.append("    [Next Step] Consider scanning each subdomain for vulnerabilities, and exploring potential attack surfaces that they expose.")
+        report.append("    [Next Step] Consider scanning each subdomain for vulnerabilities, and exploring potential attack surfaces that they expose.\n")
 
     if traceroute:
         report.append("[+] Traceroute Results:")
         for hop in traceroute:
             report.append(f"    {hop}")
         report.append("    [Info] Traceroute helps you understand the path packets take to reach the target, which can reveal intermediate network devices and potential points of filtering or throttling.")
-        report.append("    [Next Step] Use this information to identify bottlenecks or devices that could be used for deeper packet inspection.")
+        report.append("    [Next Step] Use this information to identify bottlenecks or devices that could be used for deeper packet inspection.\n")
 
     if dns_data:
         report.append("[+] DNS Records:")
@@ -343,7 +351,7 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
             for record in records:
                 report.append(f"      - {record}")
         report.append("    [Info] DNS records provide information about how a domain resolves, including mail servers and IP addresses, which is useful in understanding the target's network structure.")
-        report.append("    [Next Step] As a pentester, you may use this information to target specific IP addresses or MX records for email-based attacks.")
+        report.append("    [Next Step] As a pentester, you may use this information to target specific IP addresses or MX records for email-based attacks.\n")
 
     if whois_data:
         report.append("[+] WHOIS Information:")
@@ -352,7 +360,7 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
         report.append(f"    - CIDR: {whois_data.get('asn_cidr', 'unknown')}")
         report.append(f"    - Country: {whois_data.get('asn_country_code', 'unknown')}")
         report.append("    [Info] WHOIS information can provide ownership details, which are useful for understanding who is responsible for a specific IP or domain.")
-        report.append("    [Next Step] You can use this information to perform targeted social engineering or identify points of contact for responsible disclosure.")
+        report.append("    [Next Step] You can use this information to perform targeted social engineering or identify points of contact for responsible disclosure.\n")
 
     report.append("--------------------------------")
     report.append("Scan Complete.")
