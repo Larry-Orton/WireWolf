@@ -12,7 +12,7 @@ import time
 import dns.resolver
 import subprocess
 
-VERSION = "1.1.6"
+VERSION = "1.1.8"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
@@ -31,7 +31,7 @@ class WireWolfShell(Cmd):
         "\n         \\___|_|\\___\\___/|_| |_| |_|\\___|      "
         "\n                                                   "
         "\n        WireWolf - Network Scanner Tool            "
-        "\n          Version: 1.1.6                           "
+        "\n          Version: 1.1.8                           "
         "\n          Author: Larry Orton                      "
         "\n============================================="
         "\n\nType `help` for available commands."
@@ -50,6 +50,7 @@ class WireWolfShell(Cmd):
         parser.add_argument('--subdomains', action='store_true', help='Enumerate subdomains for the target domain')
         parser.add_argument('--traceroute', action='store_true', help='Perform a traceroute to the target')
         parser.add_argument('--dns', action='store_true', help='Retrieve DNS records for the target domain')
+        parser.add_argument('--bloodhound', action='store_true', help='Run BloodHound AD enumeration')
         try:
             args = parser.parse_args(args.split())
             target = args.target
@@ -60,6 +61,7 @@ class WireWolfShell(Cmd):
             subdomains = args.subdomains
             traceroute = args.traceroute
             dns_lookup = args.dns
+            bloodhound = args.bloodhound
 
             # Run the scan with a loading animation
             run_with_spinner(
@@ -71,7 +73,8 @@ class WireWolfShell(Cmd):
                 fast,
                 subdomains,
                 traceroute,
-                dns_lookup
+                dns_lookup,
+                bloodhound
             )
 
         except SystemExit:
@@ -100,6 +103,7 @@ Options:
       --subdomains                 Enumerate subdomains for the target domain.
       --traceroute                 Perform a traceroute to the target IP.
       --dns                        Retrieve DNS records (A, MX) for the target domain.
+      --bloodhound                 Run BloodHound AD enumeration for pentesting purposes.
   -h, --help                       Display this help menu.
 
 Commands:
@@ -130,8 +134,11 @@ Examples:
   8. DNS Lookup:
      scan -t example.com --dns
 
-  9. Combined Features:
-     scan -t example.com --subdomains --dns
+  9. BloodHound Enumeration:
+     scan -t example.com --bloodhound
+
+ 10. Combined Features:
+     scan -t example.com --subdomains --dns --bloodhound
 =============================================
         """)
 
@@ -176,7 +183,7 @@ def run_with_spinner(task_function, *args):
         sys.stdout.flush()
 
 
-def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup):
+def perform_scan(target, ports, output_file, verbose, fast, subdomains, traceroute, dns_lookup, bloodhound):
     """Perform the full or fast scan based on user input."""
     try:
         ip = socket.gethostbyname(target)
@@ -197,7 +204,8 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
         subdomains_data = enumerate_subdomains(target) if subdomains else []
         traceroute_data = trace_route(ip) if traceroute else []
         dns_data = lookup_dns(target) if dns_lookup else {}
-        generate_report(target, ip, geo_data, port_data, whois_data, subdomains_data, traceroute_data, dns_data, output_file)
+        bloodhound_data = run_bloodhound(target) if bloodhound else None
+        generate_report(target, ip, geo_data, port_data, whois_data, subdomains_data, traceroute_data, dns_data, bloodhound_data, output_file)
 
 
 def get_geoip(ip):
@@ -277,7 +285,7 @@ def trace_route(ip):
     """Perform a traceroute to the target IP."""
     traceroute_output = []
     try:
-        result = subprocess.run(["traceroute", ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = subprocess.run(["tracert" if sys.platform == "win32" else "traceroute", ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if result.returncode == 0:
             traceroute_output = result.stdout.splitlines()
         else:
@@ -298,7 +306,24 @@ def lookup_dns(domain):
     return dns_data
 
 
-def generate_report(target, ip, geo_data, ports, whois_data, subdomains, traceroute, dns_data, output_file):
+def run_bloodhound(target):
+    """Run BloodHound AD enumeration and collect data."""
+    try:
+        print(f"[+] Running BloodHound enumeration for target: {target}")
+        command = ["sharphound", "-c", "All"]
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode == 0:
+            print(f"[+] BloodHound data collection completed successfully for target: {target}")
+            return result.stdout
+        else:
+            print(f"[!] BloodHound data collection failed: {result.stderr}")
+            return None
+    except Exception as e:
+        print(f"[!] BloodHound encountered an error: {e}")
+        return None
+
+
+def generate_report(target, ip, geo_data, ports, whois_data, subdomains, traceroute, dns_data, bloodhound_data, output_file):
     """Generate a comprehensive report based on the scan results."""
     report = []
     report.append("==========================")
@@ -325,9 +350,16 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
         report.append("[+] Open Ports:")
         for port, state, service in ports:
             report.append(f"    - {port}/tcp: {state} ({service})")
-            # Adding educational information
-            report.append(f"        [Info] Port {port} is {state}. The service running is '{service}', which is typically used for {service_description(service)}.")
-            report.append(f"        [Next Step] As a pentester, you might want to research vulnerabilities associated with '{service}' or use tools like Metasploit to identify potential exploits for open ports.\n")
+            # Adding dynamic educational information based on results
+            if state == 'open':
+                report.append(f"        [Info] Port {port} is open. The service running is '{service}', which is typically used for {service_description(service)}.")
+                report.append(f"        [Next Step] As a pentester, you might want to research vulnerabilities associated with '{service}' or use tools like Metasploit to identify potential exploits for open ports.\n")
+            elif state == 'filtered':
+                report.append(f"        [Info] Port {port} is filtered, which means packets are being blocked by a firewall or other security measure.")
+                report.append(f"        [Next Step] Consider performing a firewall analysis or using tools like Nmap with aggressive options to gather more information.\n")
+            else:
+                report.append(f"        [Info] Port {port} is in an unknown state ({state}). This might require further investigation.")
+                report.append(f"        [Next Step] Consider conducting a more thorough scan or using different tools to determine why this port is not clearly open or closed.\n")
         report.append("")
 
     if subdomains:
@@ -362,6 +394,12 @@ def generate_report(target, ip, geo_data, ports, whois_data, subdomains, tracero
         report.append("    [Info] WHOIS information can provide ownership details, which are useful for understanding who is responsible for a specific IP or domain.")
         report.append("    [Next Step] You can use this information to perform targeted social engineering or identify points of contact for responsible disclosure.\n")
 
+    if bloodhound_data:
+        report.append("[+] BloodHound Enumeration Results:")
+        report.append(bloodhound_data)
+        report.append("    [Info] BloodHound provides information about relationships within an Active Directory environment, highlighting potential attack paths.")
+        report.append("    [Next Step] Load the BloodHound results into the BloodHound GUI to analyze the AD attack paths. Use this information to determine effective privilege escalation strategies and lateral movement opportunities.\n")
+
     report.append("--------------------------------")
     report.append("Scan Complete.")
     report.append("")
@@ -389,28 +427,66 @@ def service_description(service):
         'ftp': "FTP is used for transferring files.",
         'smtp': "SMTP is used for sending emails.",
         'dns': "DNS is used for domain name resolution.",
-        'mysql': "MySQL is a popular database service."
+        'mysql': "MySQL is a popular open-source database management system."
     }
-    return descriptions.get(service, "a general purpose that could vary depending on configuration.")
+    return descriptions.get(service, "a commonly known service")
+
+
+def generate_fast_report(target, ip, geo_data, ports, output_file):
+    """Generate a fast report based on limited scan data."""
+    report = []
+    report.append("==========================")
+    report.append(" WireWolf Network Scanner (Fast Report)")
+    report.append("==========================\n")
+    report.append(f"Target: {target} ({ip})")
+    report.append(f"Scan Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    report.append("================================\n")
+
+    report.append("[+] Resolved IP Address:")
+    report.append(f"    - {ip}\n")
+    report.append("    [Info] The IP address for the target has been resolved, which is essential for subsequent steps in network reconnaissance.\n")
+
+    if geo_data:
+        report.append("[+] GeoIP Information:")
+        report.append(f"    - Country: {geo_data.get('country', 'unknown')}")
+        report.append(f"    - Region: {geo_data.get('region', 'unknown')}")
+        report.append(f"    - City: {geo_data.get('city', 'unknown')}")
+        report.append(f"    - Latitude: {geo_data.get('latitude', 'unknown')}")
+        report.append(f"    - Longitude: {geo_data.get('longitude', 'unknown')}\n")
+        report.append("    [Info] Knowing the geographic location can be useful for determining the origin of potential threats or understanding network latency.\n")
+
+    if ports:
+        report.append("[+] Open Ports:")
+        for port, state, service in ports:
+            report.append(f"    - {port}/tcp: {state} ({service})")
+            # Adding dynamic educational information based on results
+            if state == 'open':
+                report.append(f"        [Info] Port {port} is open. The service running is '{service}', which is typically used for {service_description(service)}.")
+                report.append(f"        [Next Step] As a pentester, you might want to research vulnerabilities associated with '{service}' or use tools like Metasploit to identify potential exploits for open ports.\n")
+        report.append("")
+
+    report.append("--------------------------------")
+    report.append("Scan Complete.")
+    report.append("")
+
+    # Print the report to the console
+    report_str = "\n".join(report)
+    print(report_str)
+
+    # Save to file if output_file is specified
+    if output_file:
+        try:
+            with open(output_file, 'w') as f:
+                f.write(report_str)
+            print(f"[+] Report saved to {output_file}")
+        except Exception as e:
+            print(f"[!] Failed to save report: {e}")
 
 
 def main():
     """Entry point for the tool."""
-    # Check dependencies on startup
-    check_dependencies()
     shell = WireWolfShell()
     shell.cmdloop()
-
-
-def check_dependencies():
-    """Check and install missing dependencies using pipx."""
-    dependencies = ["nmap", "requests", "ipwhois", "dns.resolver"]
-    for package in dependencies:
-        try:
-            __import__(package)
-        except ImportError:
-            print(f"[!] {package} is missing. Installing...")
-            subprocess.run(["pipx", "install", package])
 
 
 if __name__ == "__main__":
