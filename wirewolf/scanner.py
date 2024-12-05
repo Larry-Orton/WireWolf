@@ -13,15 +13,12 @@ import dns.resolver
 import subprocess
 import shutil
 import os
-import scapy.all as scapy
 
 VERSION = "1.1.9"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
 stop_spinner = False
-# New Global Settings for Sniffing
-sniff_duration = 60  # Sniff for 60 seconds by default
 
 class WireWolfShell(Cmd):
     """Interactive shell for WireWolf."""
@@ -36,13 +33,13 @@ class WireWolfShell(Cmd):
         "\n         \\___|_|\\___\\___/|_| |_| |_|\\___|      "
         "\n                                                   "
         "\n        WireWolf - Network Scanner Tool            "
-        "\n          Version: 1.2.0                           "
+        "\n          Version: 1.1.9                           "
         "\n          Author: Larry Orton                      "
         "\n============================================="
         "\n\nType help for available commands."
         "\n"
     )
-    def do_scan(self, args):
+        def do_scan(self, args):
         """Scan a target. Usage: scan -t <target> [-p <ports>] [-o <output>] [-f] [-v]"""
         parser = argparse.ArgumentParser(prog="scan", add_help=False)
         parser.add_argument('-t', '--target', required=True, help='Target IP or domain to scan')
@@ -61,7 +58,7 @@ class WireWolfShell(Cmd):
         try:
             args = parser.parse_args(args.split())
             target = args.target
-            ports = '1-500' if args.deep else args.ports
+            ports = '1-65535' if args.deep else args.ports
             output_file = args.output
             fast = args.fast
             verbose = args.verbose
@@ -95,37 +92,10 @@ class WireWolfShell(Cmd):
         """Exit the WireWolf shell."""
         print("Goodbye!")
         return True
-    def do_sniff(self, args):
-        """Detective Mode: Sniff network packets for analysis. Usage: sniff [-t <duration>]"""
-        parser = argparse.ArgumentParser(prog="sniff", add_help=False)
-        parser.add_argument('-t', '--time', type=int, default=sniff_duration, help='Duration in seconds to sniff packets (default: 60 seconds)')
-        
-        try:
-            args = parser.parse_args(args.split())
-            sniff_time = args.time
 
-            print("\n🔍 Entering Detective Mode...")
-            run_with_spinner(sniff_packets, sniff_time)
-        except SystemExit:
-            print("[!] Invalid usage. Type help for usage details.")
-
-def sniff_packets(duration):
-    """Sniff packets on the network and provide a summary."""
-    print(f"[+] Sniffing packets for {duration} seconds...")
-
-    def process_packet(packet):
-        print(f"🕵️ Captured Packet: {packet.summary()}")
-
-    try:
-        scapy.sniff(prn=process_packet, timeout=duration)
-        print("[+] Detective Mode completed.")
-        print("[Next Step] Review captured packet information to look for anomalies, interesting IPs, or suspicious activity.")
-    except PermissionError:
-        print("[!] Permission denied. Please run as root or with elevated privileges to sniff network packets.")
-        
-def do_help(self, args):
-    """Display help information for available commands."""
-    print("""
+    def do_help(self, args):
+        """Display help information for available commands."""
+        print("""
 =============================================
                   HELP MENU                  
 =============================================
@@ -147,8 +117,8 @@ Options:
   -h, --help                       Display this help menu.
 
 Commands:
-  update                           Update the WireWolf tool from the command line.
-  sniff                            Enter Detective Mode to sniff network packets for analysis.
+  update                          Update the WireWolf tool from the command line.
+  sniff                           Sniff network packets on a specified interface.
 
 Examples:
   1. Basic Scan:
@@ -178,12 +148,10 @@ Examples:
   9. LDAP Domain Dump Enumeration:
      scan -t example.com --ldapdump -u user -P pass
 
- 10. Packet Sniffing (Detective Mode):
-     sniff -t 60    # Sniff network packets for 60 seconds
-
+ 10. Packet Sniffing:
+     sniff -i eth0 -c 10
 =============================================
         """)
-
 
     def do_update(self, args):
         """Update the WireWolf tool from the command line."""
@@ -199,12 +167,28 @@ Examples:
         except Exception as e:
             print(f"[!] Update process encountered an error: {e}")
 
+    def do_sniff(self, args):
+        """Sniff network packets. Usage: sniff -i <interface> -c <packet_count>"""
+        parser = argparse.ArgumentParser(prog="sniff", add_help=False)
+        parser.add_argument('-i', '--interface', required=True, help='Network interface to sniff on (e.g., eth0)')
+        parser.add_argument('-c', '--count', default=10, type=int, help='Number of packets to capture (default: 10)')
+        
+        try:
+            args = parser.parse_args(args.split())
+            interface = args.interface
+            packet_count = args.count
+
+            # Run packet sniffing
+            run_with_spinner(sniff_packets, interface, packet_count)
+
+        except SystemExit:
+            print("[!] Invalid usage. Type `help sniff` for usage details.")
 def check_dependencies():
     """Check and install missing dependencies."""
-    dependencies = ["docker", "nmap", "ldapdomaindump", "scapy"]
+    dependencies = ["docker", "nmap", "ldapdomaindump", "tcpdump"]
 
     for dep in dependencies:
-        if shutil.which(dep) is None and dep != "scapy":
+        if shutil.which(dep) is None:
             print(f"[!] Missing dependency: {dep}. Attempting to install...")
             try:
                 if dep == "docker":
@@ -216,24 +200,12 @@ def check_dependencies():
                 elif dep == "ldapdomaindump":
                     subprocess.run(["pipx", "install", "ldapdomaindump"], check=True)
                     print("[+] ldapdomaindump installed successfully.")
+                elif dep == "tcpdump":
+                    subprocess.run(["sudo", "apt-get", "install", "-y", "tcpdump"], check=True)
+                    print("[+] tcpdump installed successfully.")
             except subprocess.CalledProcessError:
                 print(f"[!] Failed to install {dep}. Please install it manually.")
-        elif dep == "scapy":
-            try:
-                # Attempt to import scapy, if it fails then install it
-                import scapy.all as scapy
-                print("[+] Scapy is already installed.")
-            except ImportError:
-                print("[!] Scapy not found. Injecting into the WireWolf environment using pipx...")
-                try:
-                    # Inject scapy into the WireWolf environment
-                    subprocess.run(["pipx", "inject", "wirewolf", "scapy"], check=True)
-                    # Verify installation by importing scapy
-                    import scapy.all as scapy
-                    print("[+] Scapy installed successfully.")
-                except subprocess.CalledProcessError:
-                    print("[!] Failed to install Scapy using pipx. Please install it manually.")
-                
+
 def spinner(message):
     """Display an animated spinner with a message."""
     global stop_spinner
@@ -310,7 +282,7 @@ def scan_ports(ip, ports, verbose):
         nm = nmap.PortScanner()
         if verbose:
             print(f"[Verbose] Scanning ports: {ports} for {ip}...")
-        nm.scan(ip, ports, '-T4')
+        nm.scan(ip, ports, '-T3')
         for port in nm[ip]['tcp']:
             state = nm[ip]['tcp'][port]['state']
             service = nm[ip]['tcp'][port].get('name', 'unknown')
@@ -364,7 +336,6 @@ def trace_route(ip):
     except Exception as e:
         print(f"[!] Traceroute process encountered an error: {e}")
     return traceroute_output
-
 def lookup_dns(domain):
     """Retrieve DNS records for the domain."""
     dns_data = {}
@@ -404,6 +375,22 @@ def run_ldapdomaindump(target, username, password):
     except Exception as e:
         print(f"[!] ldapdomaindump encountered an error: {e}")
         return None
+
+def sniff_packets(interface, packet_count):
+    """Sniff network packets using tcpdump."""
+    try:
+        print(f"[+] Sniffing {packet_count} packets on interface {interface}...")
+        command = ["tcpdump", "-i", interface, "-c", str(packet_count)]
+        result = subprocess.run(command, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print("[+] Packet capture complete:")
+            print(result.stdout)
+        else:
+            print(f"[!] Packet capture failed: {result.stderr}")
+    except Exception as e:
+        print(f"[!] Packet sniffing encountered an error: {e}")
+
 def generate_report(target, ip, geo_data, ports, whois_data, subdomains, traceroute, dns_data, ldapdump_data, output_file):
     """Generate a comprehensive report based on the scan results."""
     report = []
