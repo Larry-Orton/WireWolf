@@ -260,7 +260,7 @@ def scan_ports(ip, ports, verbose):
         nm = nmap.PortScanner()
         if verbose:
             print(f"[Verbose] Scanning ports: {ports} for {ip}...")
-        nm.scan(ip, ports, '-T3')
+        nm.scan(ip, ports, '-T4')
         for port in nm[ip]['tcp']:
             state = nm[ip]['tcp'][port]['state']
             service = nm[ip]['tcp'][port].get('name', 'unknown')
