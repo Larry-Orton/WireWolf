@@ -58,7 +58,7 @@ class WireWolfShell(Cmd):
         try:
             args = parser.parse_args(args.split())
             target = args.target
-            ports = '1-65535' if args.deep else args.ports
+            ports = '1-500' if args.deep else args.ports
             output_file = args.output
             fast = args.fast
             verbose = args.verbose
