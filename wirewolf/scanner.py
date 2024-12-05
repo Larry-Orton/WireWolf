@@ -123,7 +123,7 @@ def sniff_packets(duration):
     except PermissionError:
         print("[!] Permission denied. Please run as root or with elevated privileges to sniff network packets.")
         
-    def do_help(self, args):
+def do_help(self, args):
     """Display help information for available commands."""
     print("""
 =============================================
