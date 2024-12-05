@@ -13,12 +13,15 @@ import dns.resolver
 import subprocess
 import shutil
 import os
+import scapy.all as scapy
 
 VERSION = "1.1.9"
 AUTHOR = "Larry Orton"
 
 # Global flag to stop the spinner
 stop_spinner = False
+# New Global Settings for Sniffing
+sniff_duration = 60  # Sniff for 60 seconds by default
 
 class WireWolfShell(Cmd):
     """Interactive shell for WireWolf."""
@@ -33,7 +36,7 @@ class WireWolfShell(Cmd):
         "\n         \\___|_|\\___\\___/|_| |_| |_|\\___|      "
         "\n                                                   "
         "\n        WireWolf - Network Scanner Tool            "
-        "\n          Version: 1.1.9                           "
+        "\n          Version: 1.2.0                           "
         "\n          Author: Larry Orton                      "
         "\n============================================="
         "\n\nType help for available commands."
@@ -92,10 +95,37 @@ class WireWolfShell(Cmd):
         """Exit the WireWolf shell."""
         print("Goodbye!")
         return True
+    def do_sniff(self, args):
+        """Detective Mode: Sniff network packets for analysis. Usage: sniff [-t <duration>]"""
+        parser = argparse.ArgumentParser(prog="sniff", add_help=False)
+        parser.add_argument('-t', '--time', type=int, default=sniff_duration, help='Duration in seconds to sniff packets (default: 60 seconds)')
+        
+        try:
+            args = parser.parse_args(args.split())
+            sniff_time = args.time
 
+            print("\n🔍 Entering Detective Mode...")
+            run_with_spinner(sniff_packets, sniff_time)
+        except SystemExit:
+            print("[!] Invalid usage. Type help for usage details.")
+
+def sniff_packets(duration):
+    """Sniff packets on the network and provide a summary."""
+    print(f"[+] Sniffing packets for {duration} seconds...")
+
+    def process_packet(packet):
+        print(f"🕵️ Captured Packet: {packet.summary()}")
+
+    try:
+        scapy.sniff(prn=process_packet, timeout=duration)
+        print("[+] Detective Mode completed.")
+        print("[Next Step] Review captured packet information to look for anomalies, interesting IPs, or suspicious activity.")
+    except PermissionError:
+        print("[!] Permission denied. Please run as root or with elevated privileges to sniff network packets.")
+        
     def do_help(self, args):
-        """Display help information for available commands."""
-        print("""
+    """Display help information for available commands."""
+    print("""
 =============================================
                   HELP MENU                  
 =============================================
@@ -117,7 +147,8 @@ Options:
   -h, --help                       Display this help menu.
 
 Commands:
-  update                          Update the WireWolf tool from the command line.
+  update                           Update the WireWolf tool from the command line.
+  sniff                            Enter Detective Mode to sniff network packets for analysis.
 
 Examples:
   1. Basic Scan:
@@ -147,10 +178,12 @@ Examples:
   9. LDAP Domain Dump Enumeration:
      scan -t example.com --ldapdump -u user -P pass
 
- 10. Combined Features:
-     scan -t example.com --subdomains --dns --ldapdump -u user -P pass
+ 10. Packet Sniffing (Detective Mode):
+     sniff -t 60    # Sniff network packets for 60 seconds
+
 =============================================
         """)
+
 
     def do_update(self, args):
         """Update the WireWolf tool from the command line."""
@@ -168,9 +201,9 @@ Examples:
 
 def check_dependencies():
     """Check and install missing dependencies."""
-    dependencies = ["docker", "nmap", "ldapdomaindump"]
+    dependencies = ["docker", "nmap", "ldapdomaindump", "scapy"]
     for dep in dependencies:
-        if shutil.which(dep) is None:
+        if shutil.which(dep) is None and dep != "scapy":
             print(f"[!] Missing dependency: {dep}. Attempting to install...")
             try:
                 if dep == "docker":
@@ -184,6 +217,15 @@ def check_dependencies():
                     print("[+] ldapdomaindump installed successfully.")
             except subprocess.CalledProcessError:
                 print(f"[!] Failed to install {dep}. Please install it manually.")
+        elif dep == "scapy":
+            try:
+                import scapy
+                print("[+] Scapy is already installed.")
+            except ImportError:
+                print("[!] Scapy not found. Installing now...")
+                subprocess.run(["pip", "install", "scapy"], check=True)
+                print("[+] Scapy installed successfully.")
+                
 def spinner(message):
     """Display an animated spinner with a message."""
     global stop_spinner
