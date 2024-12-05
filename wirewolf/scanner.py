@@ -28,7 +28,7 @@ class WireWolfShell(Cmd):
         "\n __        __  _                                   "
         "\n \\ \\      / / | |                                "
         "\n  \\ \\ /\\ / /__| | ___ ___  _ __ ___   ___       "
-        "\n   \\ V  V / _ \\ |/ __/ _ \\| '_ ` _ \\ / _ \\     "
+        "\n   \\ V  V / _ \\ |/ __/ _ \\| '_  _ \\ / _ \\     "
         "\n    \\_/\\_/  __/ | (_| (_) | | | | | |  __/ |     "
         "\n         \\___|_|\\___\\___/|_| |_| |_|\\___|      "
         "\n                                                   "
@@ -36,7 +36,7 @@ class WireWolfShell(Cmd):
         "\n          Version: 1.1.9                           "
         "\n          Author: Larry Orton                      "
         "\n============================================="
-        "\n\nType `help` for available commands."
+        "\n\nType help for available commands."
         "\n"
     )
     def do_scan(self, args):
@@ -86,40 +86,13 @@ class WireWolfShell(Cmd):
             )
 
         except SystemExit:
-            print("[!] Invalid usage. Type `help` for usage details.")
+            print("[!] Invalid usage. Type help for usage details.")
 
-def do_update(self, args):
-        """Update the WireWolf tool from the command line."""
-        try:
-            print("Updating WireWolf...\n")
-            result = subprocess.run(["pipx", "reinstall", "wirewolf"], capture_output=True, text=True)
-            if result.returncode == 0:
-                print("[+] WireWolf updated successfully!")
-                print("[+] Restarting WireWolf...")
-                sys.exit(0)  # Exit after update to restart
-            else:
-                print(f"[!] Update failed: {result.stderr}")
-        except Exception as e:
-            print(f"[!] Update process encountered an error: {e}")
+    def do_exit(self, args):
+        """Exit the WireWolf shell."""
+        print("Goodbye!")
+        return True
 
-def check_dependencies():
-    """Check and install missing dependencies."""
-    dependencies = ["docker", "nmap", "ldapdomaindump"]
-    for dep in dependencies:
-        if shutil.which(dep) is None:
-            print(f"[!] Missing dependency: {dep}. Attempting to install...")
-            try:
-                if dep == "docker":
-                    subprocess.run(["sudo", "apt-get", "install", "-y", "docker.io"], check=True)
-                    print("[+] Docker installed successfully.")
-                elif dep == "nmap":
-                    subprocess.run(["sudo", "apt-get", "install", "-y", "nmap"], check=True)
-                    print("[+] Nmap installed successfully.")
-                elif dep == "ldapdomaindump":
-                    subprocess.run(["pip", "install", "ldapdomaindump"], check=True)
-                    print("[+] ldapdomaindump installed successfully.")
-            except subprocess.CalledProcessError:
-                print(f"[!] Failed to install {dep}. Please install it manually.")
     def do_help(self, args):
         """Display help information for available commands."""
         print("""
@@ -138,7 +111,7 @@ Options:
       --subdomains                 Enumerate subdomains for the target domain.
       --traceroute                 Perform a traceroute to the target IP.
       --dns                        Retrieve DNS records (A, MX) for the target domain.
-      --ldapdump                   Run ldapdomaindump for Active Directory enumeration (requires username and password).
+      --ldapdump                   Run ldapdomaindump for Active Directory enumeration.
   -u, --username    <Username>     Username for AD enumeration (used with --ldapdump).
   -P, --password    <Password>     Password for AD enumeration (used with --ldapdump).
   -h, --help                       Display this help menu.
@@ -179,6 +152,38 @@ Examples:
 =============================================
         """)
 
+    def do_update(self, args):
+        """Update the WireWolf tool from the command line."""
+        try:
+            print("Updating WireWolf...\n")
+            result = subprocess.run(["pipx", "reinstall", "wirewolf"], capture_output=True, text=True)
+            if result.returncode == 0:
+                print("[+] WireWolf updated successfully!")
+                print("[+] Restarting WireWolf...")
+                sys.exit(0)  # Exit after update to restart
+            else:
+                print(f"[!] Update failed: {result.stderr}")
+        except Exception as e:
+            print(f"[!] Update process encountered an error: {e}")
+
+def check_dependencies():
+    """Check and install missing dependencies."""
+    dependencies = ["docker", "nmap", "ldapdomaindump"]
+    for dep in dependencies:
+        if shutil.which(dep) is None:
+            print(f"[!] Missing dependency: {dep}. Attempting to install...")
+            try:
+                if dep == "docker":
+                    subprocess.run(["sudo", "apt-get", "install", "-y", "docker.io"], check=True)
+                    print("[+] Docker installed successfully.")
+                elif dep == "nmap":
+                    subprocess.run(["sudo", "apt-get", "install", "-y", "nmap"], check=True)
+                    print("[+] Nmap installed successfully.")
+                elif dep == "ldapdomaindump":
+                    subprocess.run(["pip", "install", "ldapdomaindump"], check=True)
+                    print("[+] ldapdomaindump installed successfully.")
+            except subprocess.CalledProcessError:
+                print(f"[!] Failed to install {dep}. Please install it manually.")
 def spinner(message):
     """Display an animated spinner with a message."""
     global stop_spinner
@@ -228,7 +233,6 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
         dns_data = lookup_dns(target) if dns_lookup else {}
         ldapdump_data = run_ldapdomaindump(target, username, password) if ldapdump else None
         generate_report(target, ip, geo_data, port_data, whois_data, subdomains_data, traceroute_data, dns_data, ldapdump_data, output_file)
-
 def get_geoip(ip):
     """Retrieve geographic information for the given IP using ip-api.com."""
     geo_data = {}
@@ -302,12 +306,7 @@ def trace_route(ip):
     """Perform a traceroute to the target IP."""
     traceroute_output = []
     try:
-        result = subprocess.run(
-            ["tracert" if sys.platform == "win32" else "traceroute", ip],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+        result = subprocess.run(["tracert" if sys.platform == "win32" else "traceroute", ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if result.returncode == 0:
             traceroute_output = result.stdout.splitlines()
         else:
@@ -330,7 +329,7 @@ def run_ldapdomaindump(target, username, password):
     """Run ldapdomaindump to collect Active Directory information."""
     try:
         print(f"[+] Running ldapdomaindump for target: {target}")
-
+        
         # Ensure output directory exists
         output_dir = f"{target}_ldapdomaindump"
         if not os.path.exists(output_dir):
@@ -344,7 +343,7 @@ def run_ldapdomaindump(target, username, password):
             "-o", output_dir,
             target
         ]
-
+        
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode == 0:
             print(f"[+] ldapdomaindump completed successfully for target: {target}")
@@ -355,7 +354,6 @@ def run_ldapdomaindump(target, username, password):
     except Exception as e:
         print(f"[!] ldapdomaindump encountered an error: {e}")
         return None
-
 def generate_report(target, ip, geo_data, ports, whois_data, subdomains, traceroute, dns_data, ldapdump_data, output_file):
     """Generate a comprehensive report based on the scan results."""
     report = []
