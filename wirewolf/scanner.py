@@ -224,9 +224,10 @@ def check_dependencies():
                 import scapy.all as scapy
                 print("[+] Scapy is already installed.")
             except ImportError:
-                print("[!] Scapy not found. Installing now using pipx...")
+                print("[!] Scapy not found. Injecting into the WireWolf environment using pipx...")
                 try:
-                    subprocess.run(["pipx", "install", "scapy"], check=True)
+                    # Inject scapy into the WireWolf environment
+                    subprocess.run(["pipx", "inject", "wirewolf", "scapy"], check=True)
                     # Verify installation by importing scapy
                     import scapy.all as scapy
                     print("[+] Scapy installed successfully.")
