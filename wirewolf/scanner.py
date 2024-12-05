@@ -202,7 +202,7 @@ Examples:
 def check_dependencies():
     """Check and install missing dependencies."""
     dependencies = ["docker", "nmap", "ldapdomaindump", "scapy"]
-    
+
     for dep in dependencies:
         if shutil.which(dep) is None and dep != "scapy":
             print(f"[!] Missing dependency: {dep}. Attempting to install...")
@@ -214,24 +214,24 @@ def check_dependencies():
                     subprocess.run(["sudo", "apt-get", "install", "-y", "nmap"], check=True)
                     print("[+] Nmap installed successfully.")
                 elif dep == "ldapdomaindump":
-                    subprocess.run(["pip", "install", "ldapdomaindump"], check=True)
+                    subprocess.run(["pipx", "install", "ldapdomaindump"], check=True)
                     print("[+] ldapdomaindump installed successfully.")
             except subprocess.CalledProcessError:
                 print(f"[!] Failed to install {dep}. Please install it manually.")
         elif dep == "scapy":
             try:
-                # Attempt to import scapy
-                import scapy
+                # Attempt to import scapy, if it fails then install it
+                import scapy.all as scapy
                 print("[+] Scapy is already installed.")
             except ImportError:
-                # If ImportError, try installing it
-                print("[!] Scapy not found. Installing now...")
+                print("[!] Scapy not found. Installing now using pipx...")
                 try:
-                    subprocess.run(["pip", "install", "scapy"], check=True)
-                    import scapy  # Import again to confirm successful installation
+                    subprocess.run(["pipx", "install", "scapy"], check=True)
+                    # Verify installation by importing scapy
+                    import scapy.all as scapy
                     print("[+] Scapy installed successfully.")
                 except subprocess.CalledProcessError:
-                    print("[!] Failed to install Scapy. Please install it manually.")
+                    print("[!] Failed to install Scapy using pipx. Please install it manually.")
                 
 def spinner(message):
     """Display an animated spinner with a message."""
