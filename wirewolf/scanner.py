@@ -26,11 +26,11 @@ class WireWolfShell(Cmd):
     intro = (
         "============================================="
         "\n __        __  _                                   "
-        "\n \ \      / / | |                                "
-        "\n  \ \ /\ / /__| | ___ ___  _ __ ___   ___       "
-        "\n   \ V  V / _ \ |/ __/ _ \| '_ ` _ \ / _ \     "
-        "\n    \_/\_/  __/ | (_| (_) | | | | | |  __/ |     "
-        "\n         \___|_|\___\___/|_| |_| |_|\___|      "
+        "\n \\ \\      / / | |                                "
+        "\n  \\ \\ /\\ / /__| | ___ ___  _ __ ___   ___       "
+        "\n   \\ V  V / _ \\ |/ __/ _ \\| '_ ` _ \\ / _ \\     "
+        "\n    \\_/\\_/  __/ | (_| (_) | | | | | |  __/ |     "
+        "\n         \\___|_|\\___\\___/|_| |_| |_|\\___|      "
         "\n                                                   "
         "\n        WireWolf - Network Scanner Tool            "
         "\n          Version: 1.1.9                           "
@@ -39,7 +39,6 @@ class WireWolfShell(Cmd):
         "\n\nType `help` for available commands."
         "\n"
     )
-
     def do_scan(self, args):
         """Scan a target. Usage: scan -t <target> [-p <ports>] [-o <output>] [-f] [-v]"""
         parser = argparse.ArgumentParser(prog="scan", add_help=False)
@@ -89,129 +88,7 @@ class WireWolfShell(Cmd):
         except SystemExit:
             print("[!] Invalid usage. Type `help` for usage details.")
 
-    def do_exit(self, args):
-        """Exit the WireWolf shell."""
-        print("Goodbye!")
-        return True
-
-    def do_help(self, args):
-        """Display help information for available commands."""
-        print("""
-=============================================
-                  HELP MENU                  
-=============================================
-Usage: scan [OPTIONS]
-
-Options:
-  -t, --target      <IP/Domain>    Specify the target domain or IP to scan (required).
-  -o, --output      <File>         Save the scan results to the specified file.
-  -p, --ports       <Ports>        Ports to scan (e.g., "80,443" or "1-1000"). Default: 80,443.
-  -f, --fast                       Enable fast mode: scan only IP, GeoIP, and two common ports.
-  -d, --deep                       Enable deep mode: scan a broader range of ports (1-65535).
-  -v, --verbose                    Enable detailed output during scanning.
-      --subdomains                 Enumerate subdomains for the target domain.
-      --traceroute                 Perform a traceroute to the target IP.
-      --dns                        Retrieve DNS records (A, MX) for the target domain.
-      --ldapdump                   Run ldapdomaindump for Active Directory enumeration.
-  -u, --username    <Username>     Username for AD enumeration (used with --ldapdump).
-  -P, --password    <Password>     Password for AD enumeration (used with --ldapdump).
-  -h, --help                       Display this help menu.
-
-Commands:
-  update                          Update the WireWolf tool from the command line.
-
-Examples:
-  1. Basic Scan:
-     scan -t example.com
-     
-  2. Custom Ports:
-     scan -t example.com -p 22,8080
-  
-  3. Save Report:
-     scan -t example.com -o report.txt
-  
-  4. Fast Scan:
-     scan -t example.com -f
-  
-  5. Deep Scan:
-     scan -t example.com -d
-
-  6. Subdomain Enumeration:
-     scan -t example.com --subdomains
-
-  7. Traceroute:
-     scan -t 8.8.8.8 --traceroute
-
-  8. DNS Lookup:
-     scan -t example.com --dns
-
-  9. LDAP Domain Dump Enumeration:
-     scan -t example.com --ldapdump -u user -P pass
-
- 10. Combined Features:
-     scan -t example.com --subdomains --dns --ldapdump -u user -P pass
-=============================================
-        """)
-
-    def do_update(self, args):
-        """Update the WireWolf tool from the command line."""
-        try:
-            print("Updating WireWolf...\n")
-            result = subprocess.run(["pipx", "reinstall", "wirewolf"], capture_output=True, text=True)
-            if result.returncode == 0:
-                print("[+] WireWolf updated successfully!")
-                print("[+] Restarting WireWolf...")
-                sys.exit(0)  # Exit after update to restart
-            else:
-                print(f"[!] Update failed: {result.stderr}")
-        except Exception as e:
-            print(f"[!] Update process encountered an error: {e}")
-
-def check_dependencies():
-    """Check and install missing dependencies."""
-    dependencies = ["docker", "nmap", "ldapdomaindump"]
-    for dep in dependencies:
-        if shutil.which(dep) is None:
-            print(f"[!] Missing dependency: {dep}. Attempting to install...")
-            try:
-                if dep == "docker":
-                    subprocess.run(["sudo", "apt-get", "install", "-y", "docker.io"], check=True)
-                    print("[+] Docker installed successfully.")
-                elif dep == "nmap":
-                    subprocess.run(["sudo", "apt-get", "install", "-y", "nmap"], check=True)
-                    print("[+] Nmap installed successfully.")
-                elif dep == "ldapdomaindump":
-                    subprocess.run(["pip", "install", "ldapdomaindump"], check=True)
-                    print("[+] ldapdomaindump installed successfully.")
-            except subprocess.CalledProcessError:
-                print(f"[!] Failed to install {dep}. Please install it manually.")
-
-def spinner(message):
-    """Display an animated spinner with a message."""
-    global stop_spinner
-    spinner_chars = itertools.cycle(["|", "/", "-", "\\"])
-    sys.stdout.write(f"\r{message} ")
-    while not stop_spinner:
-        sys.stdout.write(next(spinner_chars))
-        sys.stdout.flush()
-        time.sleep(0.1)
-        sys.stdout.write("\b")
-
-def run_with_spinner(task_function, *args):
-    """Run a task with a loading spinner."""
-    global stop_spinner
-    stop_spinner = False
-    spinner_thread = threading.Thread(target=spinner, args=("Running scan...",))
-    spinner_thread.daemon = True
-    spinner_thread.start()
-    try:
-        task_function(*args)
-    finally:
-        stop_spinner = True
-        spinner_thread.join()
-        sys.stdout.write("\r" + " " * 30 + "\r")  # Clear the spinner line
-        sys.stdout.flush()
-        def do_update(self, args):
+def do_update(self, args):
         """Update the WireWolf tool from the command line."""
         try:
             print("Updating WireWolf...\n")
@@ -331,6 +208,7 @@ def scan_ports(ip, ports, verbose):
     except Exception as e:
         print(f"[!] An error occurred during port scanning: {e}")
     return results
+
 def whois_lookup(ip):
     """Perform WHOIS lookup for the target IP."""
     whois_data = {}
