@@ -120,6 +120,64 @@ def check_dependencies():
                     print("[+] ldapdomaindump installed successfully.")
             except subprocess.CalledProcessError:
                 print(f"[!] Failed to install {dep}. Please install it manually.")
+    def do_help(self, args):
+        """Display help information for available commands."""
+        print("""
+=============================================
+                  HELP MENU                  
+=============================================
+Usage: scan [OPTIONS]
+
+Options:
+  -t, --target      <IP/Domain>    Specify the target domain or IP to scan (required).
+  -o, --output      <File>         Save the scan results to the specified file.
+  -p, --ports       <Ports>        Ports to scan (e.g., "80,443" or "1-1000"). Default: 80,443.
+  -f, --fast                       Enable fast mode: scan only IP, GeoIP, and two common ports.
+  -d, --deep                       Enable deep mode: scan a broader range of ports (1-65535).
+  -v, --verbose                    Enable detailed output during scanning.
+      --subdomains                 Enumerate subdomains for the target domain.
+      --traceroute                 Perform a traceroute to the target IP.
+      --dns                        Retrieve DNS records (A, MX) for the target domain.
+      --ldapdump                   Run ldapdomaindump for Active Directory enumeration (requires username and password).
+  -u, --username    <Username>     Username for AD enumeration (used with --ldapdump).
+  -P, --password    <Password>     Password for AD enumeration (used with --ldapdump).
+  -h, --help                       Display this help menu.
+
+Commands:
+  update                          Update the WireWolf tool from the command line.
+
+Examples:
+  1. Basic Scan:
+     scan -t example.com
+     
+  2. Custom Ports:
+     scan -t example.com -p 22,8080
+  
+  3. Save Report:
+     scan -t example.com -o report.txt
+  
+  4. Fast Scan:
+     scan -t example.com -f
+  
+  5. Deep Scan:
+     scan -t example.com -d
+
+  6. Subdomain Enumeration:
+     scan -t example.com --subdomains
+
+  7. Traceroute:
+     scan -t 8.8.8.8 --traceroute
+
+  8. DNS Lookup:
+     scan -t example.com --dns
+
+  9. LDAP Domain Dump Enumeration:
+     scan -t example.com --ldapdump -u user -P pass
+
+ 10. Combined Features:
+     scan -t example.com --subdomains --dns --ldapdump -u user -P pass
+=============================================
+        """)
 
 def spinner(message):
     """Display an animated spinner with a message."""
