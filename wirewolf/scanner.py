@@ -39,7 +39,7 @@ class WireWolfShell(Cmd):
         "\n\nType help for available commands."
         "\n"
     )
-        def do_scan(self, args):
+    def do_scan(self, args):
         """Scan a target. Usage: scan -t <target> [-p <ports>] [-o <output>] [-f] [-v]"""
         parser = argparse.ArgumentParser(prog="scan", add_help=False)
         parser.add_argument('-t', '--target', required=True, help='Target IP or domain to scan')
