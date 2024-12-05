@@ -189,7 +189,65 @@ def check_dependencies():
 def spinner(message):
     """Display an animated spinner with a message."""
     global stop_spinner
-    spinner_chars = itertools.cycle(["|", "/", "-", "\"])
+    spinner_chars = itertools.cycle(["|", "/", "-", "\\"])
+    sys.stdout.write(f"\r{message} ")
+    while not stop_spinner:
+        sys.stdout.write(next(spinner_chars))
+        sys.stdout.flush()
+        time.sleep(0.1)
+        sys.stdout.write("\b")
+
+def run_with_spinner(task_function, *args):
+    """Run a task with a loading spinner."""
+    global stop_spinner
+    stop_spinner = False
+    spinner_thread = threading.Thread(target=spinner, args=("Running scan...",))
+    spinner_thread.daemon = True
+    spinner_thread.start()
+    try:
+        task_function(*args)
+    finally:
+        stop_spinner = True
+        spinner_thread.join()
+        sys.stdout.write("\r" + " " * 30 + "\r")  # Clear the spinner line
+        sys.stdout.flush()
+        def do_update(self, args):
+        """Update the WireWolf tool from the command line."""
+        try:
+            print("Updating WireWolf...\n")
+            result = subprocess.run(["pipx", "reinstall", "wirewolf"], capture_output=True, text=True)
+            if result.returncode == 0:
+                print("[+] WireWolf updated successfully!")
+                print("[+] Restarting WireWolf...")
+                sys.exit(0)  # Exit after update to restart
+            else:
+                print(f"[!] Update failed: {result.stderr}")
+        except Exception as e:
+            print(f"[!] Update process encountered an error: {e}")
+
+def check_dependencies():
+    """Check and install missing dependencies."""
+    dependencies = ["docker", "nmap", "ldapdomaindump"]
+    for dep in dependencies:
+        if shutil.which(dep) is None:
+            print(f"[!] Missing dependency: {dep}. Attempting to install...")
+            try:
+                if dep == "docker":
+                    subprocess.run(["sudo", "apt-get", "install", "-y", "docker.io"], check=True)
+                    print("[+] Docker installed successfully.")
+                elif dep == "nmap":
+                    subprocess.run(["sudo", "apt-get", "install", "-y", "nmap"], check=True)
+                    print("[+] Nmap installed successfully.")
+                elif dep == "ldapdomaindump":
+                    subprocess.run(["pip", "install", "ldapdomaindump"], check=True)
+                    print("[+] ldapdomaindump installed successfully.")
+            except subprocess.CalledProcessError:
+                print(f"[!] Failed to install {dep}. Please install it manually.")
+
+def spinner(message):
+    """Display an animated spinner with a message."""
+    global stop_spinner
+    spinner_chars = itertools.cycle(["|", "/", "-", "\\"])
     sys.stdout.write(f"\r{message} ")
     while not stop_spinner:
         sys.stdout.write(next(spinner_chars))
@@ -216,7 +274,7 @@ def perform_scan(target, ports, output_file, verbose, fast, subdomains, tracerou
     """Perform the full or fast scan based on user input."""
     try:
         ip = socket.gethostbyname(target)
-    except
+    except socket.gaierror:
         print(f"[!] Error: Unable to resolve target '{target}'. Please check the target name.")
         return
 
@@ -263,7 +321,7 @@ def scan_ports(ip, ports, verbose):
         nm = nmap.PortScanner()
         if verbose:
             print(f"[Verbose] Scanning ports: {ports} for {ip}...")
-        nm.scan(ip, ports, '-T4')
+        nm.scan(ip, ports, '-T3')
         for port in nm[ip]['tcp']:
             state = nm[ip]['tcp'][port]['state']
             service = nm[ip]['tcp'][port].get('name', 'unknown')
@@ -273,7 +331,6 @@ def scan_ports(ip, ports, verbose):
     except Exception as e:
         print(f"[!] An error occurred during port scanning: {e}")
     return results
-
 def whois_lookup(ip):
     """Perform WHOIS lookup for the target IP."""
     whois_data = {}
@@ -309,7 +366,12 @@ def trace_route(ip):
     """Perform a traceroute to the target IP."""
     traceroute_output = []
     try:
-        result = subprocess.run(["tracert" if sys.platform == "win32" else "traceroute", ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = subprocess.run(
+            ["tracert" if sys.platform == "win32" else "traceroute", ip],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
         if result.returncode == 0:
             traceroute_output = result.stdout.splitlines()
         else:
@@ -332,7 +394,7 @@ def run_ldapdomaindump(target, username, password):
     """Run ldapdomaindump to collect Active Directory information."""
     try:
         print(f"[+] Running ldapdomaindump for target: {target}")
-        
+
         # Ensure output directory exists
         output_dir = f"{target}_ldapdomaindump"
         if not os.path.exists(output_dir):
@@ -346,7 +408,7 @@ def run_ldapdomaindump(target, username, password):
             "-o", output_dir,
             target
         ]
-        
+
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode == 0:
             print(f"[+] ldapdomaindump completed successfully for target: {target}")
@@ -357,87 +419,7 @@ def run_ldapdomaindump(target, username, password):
     except Exception as e:
         print(f"[!] ldapdomaindump encountered an error: {e}")
         return None
-def get_geoip(ip):
-    """Retrieve geographic information for the given IP using ip-api.com."""
-    geo_data = {}
-    try:
-        response = requests.get(f"http://ip-api.com/json/{ip}")
-        data = response.json()
-        if data['status'] == 'success':
-            geo_data = {
-                'country': data.get('country', 'Unknown'),
-                'region': data.get('regionName', 'Unknown'),
-                'city': data.get('city', 'Unknown'),
-                'latitude': data.get('lat', 'Unknown'),
-                'longitude': data.get('lon', 'Unknown')
-            }
-        else:
-            print(f"[!] GeoIP lookup failed: {data.get('message', 'Unknown error')}")
-    except Exception as e:
-        print(f"[!] GeoIP lookup failed: {e}")
-    return geo_data
 
-def scan_ports(ip, ports, verbose):
-    """Scan specified ports using Nmap."""
-    results = []
-    try:
-        nm = nmap.PortScanner()
-        if verbose:
-            print(f"[Verbose] Scanning ports: {ports} for {ip}...")
-        nm.scan(ip, ports, '-T4')
-        for port in nm[ip]['tcp']:
-            state = nm[ip]['tcp'][port]['state']
-            service = nm[ip]['tcp'][port].get('name', 'unknown')
-            results.append((port, state, service))
-    except KeyError:
-        print(f"[!] Error: Unable to scan ports for {ip}. Ensure the IP is reachable.")
-    except Exception as e:
-        print(f"[!] An error occurred during port scanning: {e}")
-    return results
-
-def whois_lookup(ip):
-    """Perform WHOIS lookup for the target IP."""
-    whois_data = {}
-    try:
-        obj = IPWhois(ip)
-        result = obj.lookup_rdap()
-        whois_data = {
-            'asn': result.get('asn', 'Unknown'),
-            'asn_description': result.get('asn_description', 'Unknown'),
-            'asn_cidr': result.get('asn_cidr', 'Unknown'),
-            'asn_country_code': result.get('asn_country_code', 'Unknown')
-        }
-    except Exception as e:
-        print(f"[!] WHOIS lookup failed: {e}")
-    return whois_data
-
-def enumerate_subdomains(domain):
-    """Enumerate subdomains for a given domain."""
-    subdomains = []
-    try:
-        common_subdomains = [f"www.{domain}", f"api.{domain}", f"mail.{domain}"]
-        for sub in common_subdomains:
-            try:
-                socket.gethostbyname(sub)
-                subdomains.append(sub)
-            except socket.gaierror:
-                pass
-    except Exception:
-        pass
-    return subdomains
-
-def trace_route(ip):
-    """Perform a traceroute to the target IP."""
-    traceroute_output = []
-    try:
-        result = subprocess.run(["tracert" if sys.platform == "win32" else "traceroute", ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        if result.returncode == 0:
-            traceroute_output = result.stdout.splitlines()
-        else:
-            print(f"[!] Traceroute failed: {result.stderr}")
-    except Exception as e:
-        print(f"[!] Traceroute process encountered an error: {e}")
-    return traceroute_output
 def generate_report(target, ip, geo_data, ports, whois_data, subdomains, traceroute, dns_data, ldapdump_data, output_file):
     """Generate a comprehensive report based on the scan results."""
     report = []
