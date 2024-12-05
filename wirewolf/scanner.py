@@ -202,6 +202,7 @@ Examples:
 def check_dependencies():
     """Check and install missing dependencies."""
     dependencies = ["docker", "nmap", "ldapdomaindump", "scapy"]
+    
     for dep in dependencies:
         if shutil.which(dep) is None and dep != "scapy":
             print(f"[!] Missing dependency: {dep}. Attempting to install...")
@@ -219,12 +220,18 @@ def check_dependencies():
                 print(f"[!] Failed to install {dep}. Please install it manually.")
         elif dep == "scapy":
             try:
+                # Attempt to import scapy
                 import scapy
                 print("[+] Scapy is already installed.")
             except ImportError:
+                # If ImportError, try installing it
                 print("[!] Scapy not found. Installing now...")
-                subprocess.run(["pip", "install", "scapy"], check=True)
-                print("[+] Scapy installed successfully.")
+                try:
+                    subprocess.run(["pip", "install", "scapy"], check=True)
+                    import scapy  # Import again to confirm successful installation
+                    print("[+] Scapy installed successfully.")
+                except subprocess.CalledProcessError:
+                    print("[!] Failed to install Scapy. Please install it manually.")
                 
 def spinner(message):
     """Display an animated spinner with a message."""
